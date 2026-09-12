@@ -103,6 +103,7 @@
     .chain-btn { background: #09090d; border: 1px solid var(--line); color: var(--dim); padding: 12px; border-radius: 10px; cursor: pointer; font-weight: 700; font-family: inherit; }
     .active-rh { border-color: var(--lime); color: var(--lime); }
     .active-sol { border-color: var(--violet); color: #c9b8ff; }
+    .chart-frame { width:100%; height:min(560px,70vh); border:0; border-radius:12px; background:#0b0b10; }
     .detail { display: grid; grid-template-columns: 1.35fr .75fr; gap: 14px; }
     .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 14px; }
     .stat { background: #09090d; border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
@@ -212,6 +213,12 @@
     const goalOf = (c) => c.goal || GOAL[c.chain];
     const pct = (c) => Math.min(100, (Number(c.raised || 0) / goalOf(c)) * 100);
     const graduated = (c) => !!(c.graduated || c.raised >= goalOf(c));
+    function embedChart(c) {
+      const chain = c.chain === "rh" ? "robinhood" : "solana";
+      let url = c.chart || ("https://dexscreener.com/" + chain + "/" + (c.address || ""));
+      if (!url.includes("embed=1")) url += (url.includes("?") ? "&" : "?") + "embed=1&theme=dark&info=0&trades=0";
+      return url;
+    }
     function filterBoard(btn, f) {
       filter = f;
       document.querySelectorAll(".toolbar button").forEach((b) => {
@@ -262,7 +269,7 @@
       $("board").innerHTML = list.map((c) => `
         <button class="rowc" onclick="show('coin','${esc(c.id)}')">
           <div class="ident">${av(c)}<div><div class="name">${esc(c.name)}</div><div class="tick">$${esc(c.symbol)} · ${c.chain === "rh" ? "PONS" : "pump.fun"} · ${age(c.created)}</div></div></div>
-          <div class="mc">${esc(c.vol || "—")}</div>
+          <div class="mc">${esc(c.vol || "—")}${c.chg ? `<div class="tick" style="color:${c.chg>=0?'#c8ff3d':'#ff6b9a'}">${c.chg>=0?'+':''}${Number(c.chg).toFixed(1)}% 24h</div>` : ""}</div>
           <div><div class="bar"><i style="width:${pct(c)}%"></i></div><div class="pct">${graduated(c) ? "Graduated" : pct(c).toFixed(0) + "% · " + Number(c.raised).toFixed(2) + " " + UNIT[c.chain]}</div></div>
           <span class="badge ${graduated(c) ? "g" : ""}">${c.chain === "rh" ? "RH 4663" : "SOL"}</span>
         </button>`).join("");
@@ -287,6 +294,7 @@
               <div class="stat"><b>Doel</b>${goalOf(c)} ${UNIT[c.chain]}</div>
               <div class="stat"><b>Market</b>${esc(c.vol || "—")}</div>
             </div>
+            <iframe class="chart-frame" title="DexScreener" src="${esc(embedChart(c))}" allow="clipboard-write"></iframe>
             <div class="bar" style="height:8px;margin-top:16px"><i style="width:${pct(c)}%"></i></div>
             <p class="lede" style="margin-top:14px">${esc((c.desc || "Geen beschrijving.").slice(0, 280))}</p>
             <p class="tick" style="margin-top:10px;word-break:break-all">${esc(c.address || "")}</p>
