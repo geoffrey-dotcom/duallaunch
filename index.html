@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="nl">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -167,20 +167,20 @@
   <main>
     <section id="view-board" class="view on">
       <p class="kicker">Robinhood Chain · Solana</p>
-      <h1>Live launches op PONS en pump.fun</h1>
-      <p class="lede">DualLaunch is een board. Tokens maak en verhandel je in je eigen wallet op de officiële pads.</p>
+      <h1>Live launches on PONS and pump.fun</h1>
+      <p class="lede">DualLaunch is a board. Create and trade tokens in your own wallet on the official pads.</p>
       <div class="stats-strip">
-        <div class="sbox"><b>Live munten</b><span id="statCount">—</span></div>
+        <div class="sbox"><b>Live coins</b><span id="statCount">—</span></div>
         <div class="sbox"><b>PONS / RH</b><span id="statRh">—</span></div>
         <div class="sbox"><b>pump.fun / SOL</b><span id="statSol">—</span></div>
-        <div class="sbox"><b>Wallet</b><span id="statWallet">Niet verbonden</span></div>
+        <div class="sbox"><b>Wallet</b><span id="statWallet">Not connected</span></div>
       </div>
       <div class="wallet-bar">
-        <input class="search" id="q" placeholder="Zoek naam, ticker of adres" />
+        <input class="search" id="q" placeholder="Search name, ticker or address" />
       </div>
-      <p class="tick" id="feedStatus" style="margin-top:10px">Feed laden…</p>
+      <p class="tick" id="feedStatus" style="margin-top:10px">Loading feed…</p>
       <div class="toolbar" id="tb-chain">
-        <button class="on" data-f="all" onclick="filterBoard(this,'all')">Alles</button>
+        <button class="on" data-f="all" onclick="filterBoard(this,'all')">All</button>
         <button data-f="rh" onclick="filterBoard(this,'rh')">PONS</button>
         <button data-f="sol" onclick="filterBoard(this,'sol')">pump.fun</button>
         <button data-f="live" onclick="filterBoard(this,'live')">Active / curve</button>
@@ -204,20 +204,20 @@
 
     <section id="view-launch" class="view">
       <p class="kicker">Official pads</p>
-      <h1>Launch op PONS of pump.fun</h1>
-      <p class="lede">Kies de keten. DualLaunch opent de officiële create-pagina. Daar vul je de token in en teken je zelf.</p>
+      <h1>Launch on PONS or pump.fun</h1>
+      <p class="lede">Pick a chain. DualLaunch opens the official create page. You fill in the token and sign there.</p>
       <div class="launch-grid">
         <a class="launch-card lime" href="https://www.ponsfamily.com/launchpad/create" target="_blank" rel="noopener" id="goPons">
           <span class="chip">Chain 4663</span>
           <strong>PONS</strong>
           <span class="tick">Robinhood Chain · launch fee 0.0005 ETH</span>
-          <span class="go">Doorgaan naar PONS →</span>
+          <span class="go">Continue to PONS →</span>
         </a>
         <a class="launch-card violet" href="https://pump.fun/create" target="_blank" rel="noopener" id="goPump">
           <span class="chip">Solana</span>
           <strong>pump.fun</strong>
           <span class="tick">Solana mainnet · create in Phantom</span>
-          <span class="go">Doorgaan naar pump.fun →</span>
+          <span class="go">Continue to pump.fun →</span>
         </a>
       </div>
     </section>
@@ -227,7 +227,7 @@
     <section id="view-swap" class="view">
       <p class="kicker">Trade</p>
       <h1>Swap</h1>
-      <p class="lede">Solana: elke SPL-token via Jupiter (zelfde router als veel wallets). Robinhood Chain heeft geen publieke aggregator — daar swap je de munt op PONS.</p>
+      <p class="lede">Solana: any SPL token via Jupiter (same router many wallets use). Robinhood Chain has no public aggregator — swap those tokens on PONS.</p>
       <div class="toolbar">
         <button class="on" id="swapSolBtn" type="button">Solana / Jupiter</button>
         <button id="swapRhBtn" type="button">Robinhood / PONS</button>
@@ -236,7 +236,7 @@
         <div id="jupiter-plugin"></div>
       </div>
       <div id="rhSwap" class="panel" style="max-width:480px;display:none">
-        <p class="tick">Plak een PONS-tokenadres of open een munt op het board en kies Open munt.</p>
+        <p class="tick">Paste a PONS token address, or open a coin on the board and use Open coin.</p>
         <input id="rhSwapAddr" placeholder="0x…" />
         <a class="btn btn-lime" id="rhSwapGo" href="https://www.ponsfamily.com/launchpad" target="_blank" rel="noopener" style="margin-top:12px">Open PONS</a>
       </div>
@@ -245,10 +245,10 @@
     <section id="view-wallet" class="view">
       <p class="kicker">Account</p>
       <h1>Wallet</h1>
-      <p class="lede">Saldo en tokens die DualLaunch op dit board kan zien. Swappen blijft op PONS of pump.fun.</p>
+      <p class="lede">Balances and tokens DualLaunch can see on this board. Swaps stay on PONS or pump.fun.</p>
       <div class="stats-strip">
-        <div class="sbox"><b>EVM / Robinhood</b><div id="wEvm">Niet verbonden</div></div>
-        <div class="sbox"><b>Solana</b><div id="wSol">Niet verbonden</div></div>
+        <div class="sbox"><b>EVM / Robinhood</b><div id="wEvm">Not connected</div></div>
+        <div class="sbox"><b>Solana</b><div id="wSol">Not connected</div></div>
       </div>
       <div class="wallet-bar" style="gap:8px;display:flex;flex-wrap:wrap;margin:12px 0 20px">
         <button class="btn btn-ghost" type="button" onclick="connectEvm()">Connect / switch RH</button>
@@ -262,12 +262,12 @@
       <p class="kicker">Legal</p>
       <h1>Disclaimer</h1>
       <div class="panel" style="max-width:680px;margin-top:16px;line-height:1.6;color:#b7b7c2">
-        DualLaunch is niet van Robinhood, PONS of pump.fun. Meme coins kunnen naar nul. Dit is geen advies.
-        Een launch is onomkeerbaar. We bewaren geen private keys.
+        DualLaunch is not affiliated with Robinhood, PONS or pump.fun. Meme coins can go to zero. This is not financial advice.
+        A launch cannot be undone. We never store private keys.
       </div>
     </section>
   </main>
-  <footer>DualLaunch · geen financieel advies</footer>
+  <footer>DualLaunch · not financial advice</footer>
   </div>
   <div class="toast" id="toast"></div>
 
@@ -424,7 +424,7 @@
     function renderBoard() {
       const list = visible();
       if (!list.length) {
-        $("board").innerHTML = `<div style="padding:28px;grid-column:1/-1" class="lede">Geen munten in deze filter, of de feed laadt nog.</div>`;
+        $("board").innerHTML = `<div style="padding:28px;grid-column:1/-1" class="lede">No coins in this filter, or the feed is still loading.</div>`;
         return;
       }
       $("board").innerHTML = list.map((c) => {
@@ -471,23 +471,23 @@
             <div class="chart-wrap">
             <iframe class="chart-frame" id="dexChart" title="Chart" src="about:blank" loading="lazy" allow="clipboard-write"></iframe></div>
             <div class="bar" style="height:8px;margin-top:16px"><i style="width:${pct(c)}%"></i></div>
-            <p class="lede" style="margin-top:14px">${esc((c.desc || "Geen beschrijving.").slice(0, 280))}</p>
+            <p class="lede" style="margin-top:14px">${esc((c.desc || "No description.").slice(0, 280))}</p>
             ${socialBtns(c, false)}
             <p class="tick" style="margin-top:10px;word-break:break-all">${esc(c.address || "")}</p>
           </div>
           <div class="panel">
             <p class="kicker">${g ? "Graduated" : "Op de curve"}</p>
             <div class="split" style="margin-top:14px">
-              <button class="btn btn-lime" type="button" onclick="window.open('${esc(pad)}','_blank','noopener')">Open munt</button>
+              <button class="btn btn-lime" type="button" onclick="window.open('${esc(pad)}','_blank','noopener')">Open coin</button>
               <button class="btn btn-violet" type="button" onclick="window.open('${esc(chart)}','_blank','noopener')">Chart</button>
             </div>
             <div class="split" style="margin-top:8px">
               <button class="btn btn-ghost" type="button" onclick="copyText('${esc(c.address || "")}')">Kopieer contract</button>
-              <button class="btn btn-ghost" type="button" onclick="addToken('${esc(c.id)}')">Zet in wallet</button>
+              <button class="btn btn-ghost" type="button" onclick="addToken('${esc(c.id)}')">Add to wallet</button>
             </div>
             <p class="tick" style="margin-top:10px">${c.chain === "rh" ? "Explorer: robinhoodchain.blockscout.com" : "Explorer: solscan.io"}</p>
             <button class="btn btn-ghost" style="width:100%;margin-top:8px" type="button" onclick="window.open('${c.chain === "rh" ? "https://robinhoodchain.blockscout.com/token/" : "https://solscan.io/token/"}' + '${esc(c.address || "")}','_blank','noopener')">Open explorer</button>
-            <p class="warn">${c.chain === "rh" ? "Open munt gaat naar de PONS-pagina van dit contract. Chart is Dexscreener (robinhood/adres)." : "Open munt gaat naar pump.fun/coin/… van deze mint."}</p>
+            <p class="warn">${c.chain === "rh" ? "Open coin goes to the PONS page for this contract. Chart is DexScreener." : "Open coin goes to pump.fun/coin/… for this mint."}</p>
           </div>
         </div>`;
       const frame = document.getElementById("dexChart");
@@ -507,13 +507,13 @@
       const bits = [];
       if (evmAddr) bits.push(short(evmAddr) + (evmBal ? " · " + evmBal + " ETH" : " · RH"));
       if (solAddr) bits.push(short(solAddr) + (solBal ? " · " + solBal + " SOL" : " · SOL"));
-      return bits.join("  ·  ") || "Niet verbonden";
+      return bits.join("  ·  ") || "Not connected";
     }
     function paintWallet() {
       const el = $("statWallet");
       if (el) el.textContent = walletLabel();
-      if ($("wEvm")) $("wEvm").innerHTML = evmAddr ? esc(short(evmAddr)) + (evmBal ? "<br>" + evmBal + " ETH" : "") : "Niet verbonden";
-      if ($("wSol")) $("wSol").innerHTML = solAddr ? esc(short(solAddr)) + (solBal ? "<br>" + solBal + " SOL" : "") : "Niet verbonden";
+      if ($("wEvm")) $("wEvm").innerHTML = evmAddr ? esc(short(evmAddr)) + (evmBal ? "<br>" + evmBal + " ETH" : "") : "Not connected";
+      if ($("wSol")) $("wSol").innerHTML = solAddr ? esc(short(solAddr)) + (solBal ? "<br>" + solBal + " SOL" : "") : "Not connected";
     }
     async function evmCall(to, data) {
       const r = await fetch("https://rpc.mainnet.chain.robinhood.com", {
@@ -524,7 +524,7 @@
     }
     async function scanHoldings() {
       const box = $("holdings");
-      if (box) box.innerHTML = "<div class='lede'>Bezig met scannen…</div>";
+      if (box) box.innerHTML = "<div class='lede'>Scanning…</div>";
       const found = [];
       if (evmAddr) {
         const pad = evmAddr.replace("0x","").toLowerCase().padStart(64,"0");
@@ -560,7 +560,7 @@
       }
       if (!box) return;
       if (!found.length) {
-        box.innerHTML = "<div class='lede'>Geen board-tokens gevonden in deze wallet. Connect eerst, daarna Scan.</div>";
+        box.innerHTML = "<div class='lede'>No board tokens found in this wallet. Connect first, then scan.</div>";
         return;
       }
       box.innerHTML = found.map(({ c, n }) => `
@@ -603,22 +603,22 @@
       paintWallet();
     }
     async function copyText(s) {
-      try { await navigator.clipboard.writeText(s); toast("Gekopieerd"); } catch (e) { toast(s); }
+      try { await navigator.clipboard.writeText(s); toast("Copied"); } catch (e) { toast(s); }
     }
     async function addToken(id) {
       const c = coins.find((x) => x.id === id);
       if (!c) return;
       if (c.chain !== "rh") { toast("Token toevoegen in Phantom: plak het mint-adres."); copyText(c.address); return; }
       const eth = window.ethereum;
-      if (!eth) { toast("Geen EVM-wallet"); return; }
+      if (!eth) { toast("No EVM wallet"); return; }
       try {
         await connectEvm();
         await eth.request({
           method: "wallet_watchAsset",
           params: { type: "ERC20", options: { address: c.address, symbol: String(c.symbol).slice(0, 11), decimals: 18, image: c.logo || "" } }
         });
-        toast(c.symbol + " aangeboden aan je wallet");
-      } catch (e) { toast(e.message || "Toevoegen geannuleerd"); }
+        toast(c.symbol + " offered to your wallet");
+      } catch (e) { toast(e.message || "Add cancelled"); }
     }
     const RH = {
       chainId: "0x1237", chainName: "Robinhood Chain",
@@ -629,7 +629,7 @@
     function short(a) { return a ? a.slice(0, 6) + "…" + a.slice(-4) : ""; }
     async function connectEvm() {
       const eth = window.ethereum;
-      if (!eth) { toast("Installeer MetaMask of Rabby."); return; }
+      if (!eth) { toast("Install MetaMask or Rabby."); return; }
       try {
         const acc = await eth.request({ method: "eth_requestAccounts" });
         try { await eth.request({ method: "wallet_switchEthereumChain", params: [{ chainId: RH.chainId }] }); }
@@ -641,22 +641,22 @@
         $("btnEvm").textContent = short(acc[0]) + " · RH";
         paintWallet();
         refreshEvmBal();
-        toast("Robinhood Chain actief.");
+        toast("Robinhood Chain is active.");
         show('wallet');
-      } catch (e) { toast(e.message || "EVM geannuleerd"); }
+      } catch (e) { toast(e.message || "EVM cancelled"); }
     }
     async function connectSol() {
       const sol = window.solana || window.phantom?.solana;
-      if (!sol) { toast("Installeer Phantom."); return; }
+      if (!sol) { toast("Install Phantom."); return; }
       try {
         const res = await sol.connect();
         solAddr = (res.publicKey || sol.publicKey).toString();
         $("btnSolW").textContent = short(solAddr) + " · SOL";
         paintWallet();
         refreshSolBal();
-        toast("Solana verbonden.");
+        toast("Solana connected.");
         show('wallet');
-      } catch (e) { toast(e.message || "Solana geannuleerd"); }
+      } catch (e) { toast(e.message || "Solana cancelled"); }
     }
     $("btnEvm").onclick = connectEvm;
     $("btnSolW").onclick = connectSol;
@@ -674,7 +674,7 @@
             containerStyles: { width: "100%", borderRadius: "16px", background: "transparent" }
           });
           jupReady = true;
-        } catch (e) { toast("Jupiter plugin kon niet starten"); }
+        } catch (e) { toast("Jupiter plugin failed to start"); }
       }
     }
     if ($("swapSolBtn")) $("swapSolBtn").onclick = () => {
@@ -717,7 +717,7 @@
         const fresh = incoming.filter((c) => !known.has(c.id));
         coins = incoming;
         trackLive(coins);
-        if (fresh.length && known.size) toast(fresh.length + " nieuwe munt(en) live");
+        if (fresh.length && known.size) toast(fresh.length + " new coin(s) live");
         if ($("statCount")) $("statCount").textContent = String(coins.length);
         if ($("statRh")) $("statRh").textContent = String(coins.filter((c)=>c.chain==="rh").length);
         if ($("statSol")) $("statSol").textContent = String(coins.filter((c)=>c.chain==="sol").length);
@@ -725,7 +725,7 @@
         if (status) status.innerHTML = '<span class="live-dot"></span>' + coins.length + " live · " + new Date().toLocaleTimeString("nl-NL");
         if (document.getElementById("view-board").classList.contains("on")) renderBoard();
       } catch (e) {
-        if (status) status.textContent = "Feed niet geladen — check api/feed.js op Vercel.";
+        if (status) status.textContent = "Feed failed to load — check api/feed.js on Vercel.";
       } finally {
         feedBusy = false;
       }
