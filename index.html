@@ -3,151 +3,173 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>DualLaunch — Board, charts & graduation</title>
+  <title>DualLaunch</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Syne:wght@500;600;700;800&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg: #07070b; --card: rgba(16,17,28,.82); --line: rgba(255,255,255,.08);
-      --text: #f4f5fb; --muted: #9aa0b8; --green: #7cff6b; --purple: #8b6bff; --warn: #ffb020;
+      --bg: #050506;
+      --panel: #0c0c10;
+      --line: #1c1c24;
+      --text: #f2f2f5;
+      --dim: #8b8b98;
+      --lime: #c8ff3d;
+      --violet: #7a5cff;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { background: var(--bg); color: var(--text); font-family: "Instrument Sans", system-ui, sans-serif; }
-    body { min-height: 100vh; }
-    .glow, .glow-2 { position: fixed; border-radius: 50%; pointer-events: none; }
-    .glow { inset: -20% auto auto -10%; width: 55vw; height: 55vw; background: radial-gradient(circle, rgba(124,255,107,.12), transparent 60%); }
-    .glow-2 { inset: auto -15% -20% auto; width: 50vw; height: 50vw; background: radial-gradient(circle, rgba(139,107,255,.16), transparent 60%); }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: Syne, system-ui, sans-serif;
+      min-height: 100vh;
+    }
+    body:before {
+      content: "";
+      position: fixed; inset: 0;
+      background:
+        radial-gradient(900px 400px at 10% -10%, rgba(200,255,61,.08), transparent 50%),
+        radial-gradient(700px 360px at 100% 0%, rgba(122,92,255,.12), transparent 45%);
+      pointer-events: none;
+    }
     nav {
-      display: flex; align-items: center; justify-content: space-between; gap: 16px;
-      padding: 16px 24px; border-bottom: 1px solid var(--line); position: sticky; top: 0;
-      backdrop-filter: blur(16px); background: rgba(7,7,11,.78); z-index: 20;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 14px 22px; border-bottom: 1px solid var(--line);
+      position: sticky; top: 0; z-index: 20;
+      background: rgba(5,5,6,.86); backdrop-filter: blur(18px);
     }
-    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; cursor: pointer; }
-    .brand img { width: 36px; height: 36px; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); }
-    .nav-links { display: flex; gap: 8px; flex-wrap: wrap; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: -.04em; cursor: pointer; }
+    .brand img { width: 32px; height: 32px; object-fit: cover; border-radius: 8px; }
+    .nav-links { display: flex; gap: 4px; }
     .nav-links button, .btn {
-      border: 0; cursor: pointer; border-radius: 999px; padding: 9px 14px; font-weight: 600; font-family: inherit;
+      border: 0; cursor: pointer; font-family: inherit; font-weight: 650;
     }
-    .nav-links button { background: transparent; color: var(--muted); }
-    .nav-links button.on { color: var(--text); background: #141625; }
-    .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
-    .btn-dual { background: linear-gradient(135deg, var(--green), #c8ff7a 40%, var(--purple)); color: #0b0b10; }
-    .btn-buy { background: var(--green); color: #08110a; width: 100%; padding: 12px; }
-    .btn-sell { background: #2a1420; color: #ff8eb0; border: 1px solid #5a2438; width: 100%; padding: 12px; }
-    main { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 28px 0 72px; }
-    h1 { font-size: clamp(28px, 5vw, 48px); letter-spacing: -.04em; line-height: 1; }
-    h1 span { background: linear-gradient(90deg, var(--green), #fff, var(--purple)); -webkit-background-clip: text; color: transparent; }
-    .muted { color: var(--muted); }
-    .chip { font-family: "IBM Plex Mono", monospace; font-size: 11px; border: 1px solid var(--line); padding: 5px 9px; border-radius: 999px; color: var(--muted); }
-    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin: 18px 0 16px; }
-    .toolbar button { background: #11131d; border: 1px solid var(--line); color: var(--muted); padding: 8px 12px; border-radius: 999px; cursor: pointer; font-family: inherit; }
-    .toolbar button.on { color: var(--text); border-color: rgba(124,255,107,.4); }
-    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-    .coin {
-      background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 14px; cursor: pointer;
-      text-align: left; color: inherit; width: 100%; font-family: inherit;
+    .nav-links button {
+      background: transparent; color: var(--dim); padding: 8px 12px; border-radius: 8px;
     }
-    .coin:hover { border-color: rgba(255,255,255,.16); }
-    .coin-top { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
-    .name { font-weight: 700; }
-    .tick { color: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: 12px; }
-    .mc { font-family: "IBM Plex Mono", monospace; font-size: 13px; }
-    .bar { height: 7px; background: #161824; border-radius: 99px; overflow: hidden; margin: 10px 0 6px; }
-    .bar > i { display: block; height: 100%; background: linear-gradient(90deg, var(--green), var(--purple)); }
-    .meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
-    .up { color: var(--green); } .down { color: #ff6b9a; }
+    .nav-links button.on { color: var(--bg); background: var(--lime); }
+    .btn { border-radius: 10px; padding: 10px 14px; }
+    .btn-ghost { background: #121218; color: var(--text); border: 1px solid var(--line); }
+    .btn-lime { background: var(--lime); color: #111; width: 100%; }
+    .btn-violet { background: #1a1430; color: #c9b8ff; border: 1px solid #3b2d6b; width: 100%; }
+    .wallets { display: flex; gap: 8px; flex-wrap: wrap; }
+    main { width: min(1120px, calc(100% - 28px)); margin: 0 auto; padding: 28px 0 64px; position: relative; }
+    .kicker { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--dim); letter-spacing: .12em; text-transform: uppercase; }
+    h1 { font-size: clamp(34px, 6vw, 62px); line-height: .92; letter-spacing: -.055em; margin: 10px 0 12px; }
+    h1 em { font-style: normal; color: var(--lime); }
+    .lede { color: var(--dim); max-width: 560px; line-height: 1.5; }
+    .toolbar { display: flex; gap: 6px; flex-wrap: wrap; margin: 22px 0 12px; }
+    .toolbar button {
+      background: transparent; border: 1px solid var(--line); color: var(--dim);
+      padding: 7px 11px; border-radius: 999px; cursor: pointer; font-family: inherit; font-size: 13px;
+    }
+    .toolbar button.on { border-color: var(--lime); color: var(--lime); }
+    .table {
+      border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--panel);
+    }
+    .rowc {
+      display: grid; grid-template-columns: 1.6fr .7fr 1.1fr .7fr;
+      gap: 10px; align-items: center; width: 100%; text-align: left;
+      padding: 12px 14px; background: transparent; border: 0; border-bottom: 1px solid var(--line);
+      color: inherit; font-family: inherit; cursor: pointer;
+    }
+    .rowc:last-child { border-bottom: 0; }
+    .rowc:hover { background: #12121a; }
+    .ident { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .av {
+      width: 42px; height: 42px; border-radius: 12px; object-fit: cover; background: #191922; flex: 0 0 auto;
+    }
+    .name { font-weight: 750; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tick { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--dim); }
+    .mc { font-family: "IBM Plex Mono", monospace; font-weight: 500; }
+    .bar { height: 5px; background: #191922; border-radius: 99px; overflow: hidden; }
+    .bar > i { display: block; height: 100%; background: linear-gradient(90deg, var(--lime), var(--violet)); }
+    .pct { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--dim); margin-top: 5px; }
+    .badge {
+      font-family: "IBM Plex Mono", monospace; font-size: 10px; padding: 4px 7px; border-radius: 6px;
+      border: 1px solid var(--line); color: var(--dim); justify-self: end;
+    }
+    .badge.g { color: var(--lime); border-color: #3a4a12; }
     .view { display: none; } .view.on { display: block; }
-    .hero { display: grid; grid-template-columns: 1.1fr .9fr; gap: 28px; align-items: start; margin-bottom: 28px; }
-    .hero-card, .panel { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 16px; }
-    label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 6px; }
+    .hero { display: grid; grid-template-columns: 1fr 420px; gap: 28px; }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 16px; }
+    label { display: block; font-size: 12px; color: var(--dim); margin: 10px 0 6px; }
     input, textarea, select {
-      width: 100%; background: #0b0c14; border: 1px solid var(--line); color: var(--text);
-      border-radius: 12px; padding: 11px; font: inherit;
+      width: 100%; background: #09090d; border: 1px solid var(--line); color: var(--text);
+      border-radius: 10px; padding: 11px; font: inherit;
     }
-    textarea { min-height: 68px; }
-    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .chain-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .chain-btn { background: #11131d; border: 1px solid var(--line); color: var(--muted); padding: 11px; border-radius: 14px; cursor: pointer; font-weight: 600; }
-    .active-rh { border-color: rgba(124,255,107,.5); color: var(--green); }
-    .active-sol { border-color: rgba(139,107,255,.55); color: #c3b4ff; }
-    .detail { display: grid; grid-template-columns: 1.4fr .75fr; gap: 14px; }
-    .chart {
-      height: 280px; background: linear-gradient(#0c0d16, #10121c); border-radius: 16px; border: 1px solid var(--line);
-      position: relative; overflow: hidden;
+    textarea { min-height: 72px; }
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .chain-btn { background: #09090d; border: 1px solid var(--line); color: var(--dim); padding: 12px; border-radius: 10px; cursor: pointer; font-weight: 700; font-family: inherit; }
+    .active-rh { border-color: var(--lime); color: var(--lime); }
+    .active-sol { border-color: var(--violet); color: #c9b8ff; }
+    .detail { display: grid; grid-template-columns: 1.35fr .75fr; gap: 14px; }
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 14px; }
+    .stat { background: #09090d; border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+    .stat b { display: block; color: var(--dim); font-size: 11px; font-weight: 500; margin-bottom: 4px; }
+    .warn { margin-top: 12px; font-size: 12px; color: #cbb48a; line-height: 1.45; }
+    .toast {
+      position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+      background: #121218; border: 1px solid var(--line); padding: 11px 14px; border-radius: 12px; display: none; z-index: 40;
     }
-    .chart svg { width: 100%; height: 100%; display: block; }
-    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
-    .stat { background: #10121c; border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
-    .stat b { display: block; font-size: 12px; color: var(--muted); font-weight: 500; }
-    .trades { margin-top: 12px; font-size: 13px; }
-    .trades div { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--line); }
-    .warn { margin-top: 10px; font-size: 12px; color: #d7c39a; background: rgba(255,176,32,.08); border: 1px solid rgba(255,176,32,.2); padding: 10px; border-radius: 12px; }
-    .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: #141625; border: 1px solid var(--line); padding: 12px 16px; border-radius: 14px; display: none; z-index: 40; max-width: min(520px, calc(100% - 24px)); }
-    @media (max-width: 900px) {
-      .grid, .hero, .detail, .stats, .row, .chain-toggle { grid-template-columns: 1fr; }
+    footer { width: min(1120px, calc(100% - 28px)); margin: 0 auto 28px; color: var(--dim); font-size: 12px; }
+    @media (max-width: 860px) {
+      .hero, .detail, .stats, .split, .rowc { grid-template-columns: 1fr; }
+      .badge { justify-self: start; }
     }
   </style>
 </head>
 <body>
-  <div class="glow"></div><div class="glow-2"></div>
   <nav>
-    <div class="brand" onclick="show('board')">
-      <img src="logo.jpg" alt="" /> DualLaunch
-    </div>
+    <div class="brand" onclick="show('board')"><img src="logo.jpg" alt="" /> DualLaunch</div>
     <div class="nav-links">
-      <button id="nav-board" class="on" onclick="show('board')">Home</button>
+      <button id="nav-board" class="on" onclick="show('board')">Board</button>
       <button id="nav-launch" onclick="show('launch')">Launch</button>
       <button id="nav-legal" onclick="show('legal')">Disclaimer</button>
     </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-      <button class="btn btn-ghost" type="button" id="btnEvm">Connect EVM</button>
-      <button class="btn btn-ghost" type="button" id="btnSolW">Connect Solana</button>
+    <div class="wallets">
+      <button class="btn btn-ghost" id="btnEvm" type="button">Connect EVM</button>
+      <button class="btn btn-ghost" id="btnSolW" type="button">Connect Solana</button>
     </div>
   </nav>
 
   <main>
     <section id="view-board" class="view on">
-      <div class="chip">Robinhood Chain · Solana · via PONS & pump.fun</div>
-      <h1 style="margin-top:12px">Launch meme coins. <span>Volg ze hier.</span></h1>
-      <p class="muted" style="margin-top:10px;max-width:640px">Live: nieuwste PONS-launches (Robinhood Chain) en nieuwste pump.fun-coins (Solana). Dat is een verse slice, niet de complete historie van alle ooit gelanceerde tokens.</p>
-      <p class="muted" id="feedStatus" style="margin-top:8px;font-size:13px">Feed laden…</p>
+      <p class="kicker">PONS · pump.fun</p>
+      <h1>Nieuwe munten.<br><em>Echte pads.</em></h1>
+      <p class="lede">Overzicht van de nieuwste launches op Robinhood Chain en Solana. Handelen doe je op PONS of pump.fun — DualLaunch is het board.</p>
+      <p class="tick" id="feedStatus" style="margin-top:10px">Feed laden…</p>
       <div class="toolbar">
-        <button class="on" data-f="all" onclick="filterBoard(this,'all')">Alles</button>
-        <button data-f="rh" onclick="filterBoard(this,'rh')">Robinhood Chain</button>
-        <button data-f="sol" onclick="filterBoard(this,'sol')">Solana</button>
-        <button data-f="live" onclick="filterBoard(this,'live')">Op de curve</button>
-        <button data-f="grad" onclick="filterBoard(this,'grad')">Graduated</button>
+        <button class="on" onclick="filterBoard(this,'all')">Alles</button>
+        <button onclick="filterBoard(this,'rh')">Robinhood / PONS</button>
+        <button onclick="filterBoard(this,'sol')">Solana / pump.fun</button>
+        <button onclick="filterBoard(this,'live')">Op de curve</button>
+        <button onclick="filterBoard(this,'grad')">Graduated</button>
       </div>
-      <div class="grid" id="board"></div>
+      <div class="table" id="board"></div>
     </section>
 
     <section id="view-launch" class="view">
       <div class="hero">
         <div>
-          <div class="chip">Teken in je eigen wallet</div>
-          <h1 style="margin-top:12px">Kies de chain, open de officiële pad.</h1>
-          <p class="muted" style="margin-top:12px">Robinhood Chain gaat naar PONS. Solana gaat naar pump.fun/create. DualLaunch bewaart geen keys en stuurt geen transactie voor je.</p>
+          <p class="kicker">Create</p>
+          <h1>Launch op de officiële pad.</h1>
+          <p class="lede">RH Chain opent de PONS-tokenpagina-flow. Solana opent pump.fun/create. Jij tekent in je wallet.</p>
         </div>
-        <form class="hero-card" id="launchForm">
-          <div class="chain-toggle">
+        <form class="panel" id="launchForm">
+          <div class="split">
             <button type="button" class="chain-btn active-rh" id="btnRh">Robinhood Chain</button>
             <button type="button" class="chain-btn" id="btnSol">Solana</button>
           </div>
-          <label>Naam</label><input name="name" required placeholder="Cash Frog" maxlength="32" />
-          <div class="row">
-            <div><label>Ticker</label><input name="symbol" required placeholder="FROG" maxlength="10" /></div>
-            <div>
-              <label>Supply</label>
-              <select name="supply"><option>1.000.000.000</option></select>
-            </div>
+          <label>Naam</label><input name="name" required maxlength="32" placeholder="Token name" />
+          <div class="split">
+            <div><label>Ticker</label><input name="symbol" required maxlength="10" placeholder="TICKER" /></div>
+            <div><label>Supply</label><select name="supply"><option>1.000.000.000</option></select></div>
           </div>
-          <label>Beschrijving</label>
-          <textarea name="desc" placeholder="Frog die hood en sol verbindt."></textarea>
-          <p class="muted" style="font-size:12px;margin:12px 0" id="feeLine">Fee ~0.0005 ETH · pair WETH · goal 4.2 ETH</p>
-          <button class="btn btn-dual" type="submit" style="width:100%;padding:13px" id="launchReal">Open officiële launcher</button>
-          <button class="btn btn-ghost" type="button" id="launchDemo" style="width:100%;padding:11px;margin-top:8px">Alleen demo op dit board</button>
-          <p class="warn">Echte launch: DualLaunch zet je wallet op de juiste chain en opent PONS (RH) of pump.fun (Solana). Jij tekent daar. DualLaunch bewaart geen keys.</p>
+          <label>Beschrijving</label><textarea name="desc" placeholder="Optioneel"></textarea>
+          <p class="tick" id="feeLine" style="margin:12px 0">~0.0005 ETH launch fee op PONS</p>
+          <button class="btn btn-lime" type="submit">Open officiële launcher</button>
+          <p class="warn">DualLaunch mint zelf niets. De pad toont de transactie; check chain en bedrag vóór je tekent.</p>
         </form>
       </div>
     </section>
@@ -155,37 +177,28 @@
     <section id="view-coin" class="view"></section>
 
     <section id="view-legal" class="view">
-      <div class="chip">Lees dit vóór je iets launcht</div>
-      <h1 style="margin-top:12px">Disclaimer</h1>
-      <div class="panel" style="margin-top:16px;max-width:720px">
-        <p class="muted" style="line-height:1.6">DualLaunch is een onafhankelijke interface. We zijn niet verbonden met Robinhood, PONS of pump.fun.</p>
-        <p class="muted" style="line-height:1.6;margin-top:12px">Meme coins zijn extreem risicovol. Je kunt je inleg volledig verliezen. Dit is geen financieel advies en geen aanbod van effecten.</p>
-        <p class="muted" style="line-height:1.6;margin-top:12px">Een launch op PONS of pump.fun is onomkeerbaar. Controleer naam, ticker, netwerk (4663 of Solana) en het bedrag in je wallet vóór je tekent.</p>
-        <p class="muted" style="line-height:1.6;margin-top:12px">DualLaunch host geen tokens, bewaart geen private keys en kan een rug, bug of verlies niet voorkomen. Wetgeving (o.a. MiCA in de EU) kan op jouw situatie van toepassing zijn.</p>
+      <p class="kicker">Legal</p>
+      <h1>Disclaimer</h1>
+      <div class="panel" style="max-width:680px;margin-top:16px;line-height:1.6;color:#b7b7c2">
+        DualLaunch is niet van Robinhood, PONS of pump.fun. Meme coins kunnen naar nul. Dit is geen advies.
+        Een launch is onomkeerbaar. We bewaren geen private keys.
       </div>
     </section>
   </main>
-  <footer class="muted" style="width:min(1180px,calc(100% - 32px));margin:0 auto 32px;font-size:12px;border-top:1px solid var(--line);padding-top:16px">
-    DualLaunch · geen financieel advies · <a href="#" onclick="show('legal');return false;" style="color:var(--muted)">Disclaimer</a>
-  </footer>
+  <footer>DualLaunch · geen financieel advies</footer>
   <div class="toast" id="toast"></div>
 
   <script>
     const GOAL = { rh: 4.2, sol: 85 };
     const UNIT = { rh: "ETH", sol: "SOL" };
-    let chain = "rh";
-    let filter = "all";
-    let coins = [];
-
+    const PONS_CREATE = "https://www.ponsfamily.com/launchpad";
+    const PUMP_CREATE = "https://pump.fun/create";
+    let chain = "rh", filter = "all", coins = [];
     const $ = (id) => document.getElementById(id);
-    function escapeHtml(s) {
-      return String(s || "").replace(/[&<>"']/g, (ch) => ({
-        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
-      }[ch]));
-    }
+    const esc = (s) => String(s || "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
     function toast(msg) { const t = $("toast"); t.textContent = msg; t.style.display = "block"; setTimeout(() => t.style.display = "none", 3800); }
     function show(name, id) {
-      document.querySelectorAll(".view").forEach(v => v.classList.remove("on"));
+      document.querySelectorAll(".view").forEach((v) => v.classList.remove("on"));
       $("view-" + name).classList.add("on");
       $("nav-board").classList.toggle("on", name === "board");
       $("nav-launch").classList.toggle("on", name === "launch");
@@ -193,195 +206,124 @@
       if (name === "coin") renderCoin(id);
       window.scrollTo(0, 0);
     }
-    function goalOf(c) { return c.goal || GOAL[c.chain]; }
-    function pct(c) { return Math.min(100, (Number(c.raised || 0) / goalOf(c)) * 100); }
-    function graduated(c) { return !!(c.graduated || c.raised >= goalOf(c)); }
-    function spark(c) {
-      const p = pct(c);
-      const pts = [8,18,14,28,22,40,36,48,44,55].map((y,i) => `${20+i*32},${110 - y * (0.4 + p/200)}`).join(" ");
-      return `<svg viewBox="0 0 340 120" preserveAspectRatio="none"><polyline fill="none" stroke="${c.chg>=0?'#7cff6b':'#ff6b9a'}" stroke-width="3" points="${pts}" /></svg>`;
-    }
-
+    const goalOf = (c) => c.goal || GOAL[c.chain];
+    const pct = (c) => Math.min(100, (Number(c.raised || 0) / goalOf(c)) * 100);
+    const graduated = (c) => !!(c.graduated || c.raised >= goalOf(c));
     function filterBoard(btn, f) {
       filter = f;
-      document.querySelectorAll(".toolbar button").forEach(b => b.classList.remove("on"));
+      document.querySelectorAll(".toolbar button").forEach((b) => b.classList.remove("on"));
       btn.classList.add("on");
       renderBoard();
     }
     function visible() {
-      return coins.filter(c => {
+      return coins.filter((c) => {
         if (filter === "rh" || filter === "sol") return c.chain === filter;
         if (filter === "live") return !graduated(c);
         if (filter === "grad") return graduated(c);
         return true;
       });
     }
+    function av(c) {
+      return c.logo
+        ? `<img class="av" src="${esc(c.logo)}" alt="" onerror="this.style.opacity='.25'"/>`
+        : `<div class="av"></div>`;
+    }
     function renderBoard() {
-      if (!visible().length) {
-        $("board").innerHTML = `<div class="panel" style="grid-column:1/-1">
-          <h3 style="margin-bottom:8px">Nog geen munten op dit board</h3>
-          <p class="muted">Launch via PONS of pump.fun, of zet een lokale notitie op het board (geen on-chain munt).</p>
-          <button class="btn btn-dual" style="margin-top:12px" type="button" onclick="show('launch')">Naar Launch</button>
-        </div>`;
+      const list = visible();
+      if (!list.length) {
+        $("board").innerHTML = `<div style="padding:28px" class="lede">Geen munten in deze filter, of de feed laadt nog.</div>`;
         return;
       }
-      $("board").innerHTML = visible().map(c => `
-        <button class="coin" onclick="show('coin','${c.id}')">
-          <div class="coin-top">
-            <div>
-              <div class="name">${escapeHtml(c.name)}</div>
-              <div class="tick">$${escapeHtml(c.symbol)} · ${c.chain === "rh" ? "PONS · RH" : "pump.fun · SOL"}</div>
-            </div>
-            <div class="mc">${escapeHtml(c.vol || "")}</div>
-          </div>
-          <div class="bar"><i style="width:${pct(c)}%"></i></div>
-          <div class="meta">
-            <span>${graduated(c) ? "Graduated" : pct(c).toFixed(0) + "% naar graduation"}</span>
-            <span>${Number(c.raised).toFixed(2)} / ${goalOf(c)} ${UNIT[c.chain]}</span>
-          </div>
-        </button>
-      `).join("") || `<p class="muted">Geen munten in deze filter.</p>`;
+      $("board").innerHTML = list.map((c) => `
+        <button class="rowc" onclick="show('coin','${esc(c.id)}')">
+          <div class="ident">${av(c)}<div><div class="name">${esc(c.name)}</div><div class="tick">$${esc(c.symbol)} · ${c.chain === "rh" ? "PONS" : "pump.fun"}</div></div></div>
+          <div class="mc">${esc(c.vol || "—")}</div>
+          <div><div class="bar"><i style="width:${pct(c)}%"></i></div><div class="pct">${graduated(c) ? "Graduated" : pct(c).toFixed(0) + "% · " + Number(c.raised).toFixed(2) + " " + UNIT[c.chain]}</div></div>
+          <span class="badge ${graduated(c) ? "g" : ""}">${c.chain === "rh" ? "RH 4663" : "SOL"}</span>
+        </button>`).join("");
     }
-
     function renderCoin(id) {
-      const c = coins.find(x => x.id === id);
+      const c = coins.find((x) => x.id === id);
       if (!c) return;
       const g = graduated(c);
+      const pad = c.link || (c.chain === "rh" ? PONS_CREATE : PUMP_CREATE);
+      const chart = c.chart || pad;
       $("view-coin").innerHTML = `
-        <button class="btn btn-ghost" onclick="show('board')" style="margin-bottom:14px">← Board</button>
+        <button class="btn btn-ghost" onclick="show('board')" style="margin-bottom:16px">← Board</button>
         <div class="detail">
           <div class="panel">
-            <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">
-              <div>
-                <h1>${escapeHtml(c.name)}</h1>
-                <p class="tick" style="margin-top:6px">$${escapeHtml(c.symbol)} · ${c.chain === "rh" ? "PONS · Robinhood Chain" : "pump.fun · Solana"}</p>
-              </div>
-              <span class="chip">${g ? "Graduated · AMM" : "Bonding curve"}</span>
-            </div>
-            <div class="chart">${spark(c)}</div>
+            <div class="ident" style="margin-bottom:16px">${av(c)}<div>
+              <h1 style="font-size:40px;margin:0">${esc(c.name)}</h1>
+              <div class="tick">$${esc(c.symbol)} · ${c.chain === "rh" ? "PONS / Robinhood Chain" : "pump.fun / Solana"}</div>
+            </div></div>
             <div class="stats">
-              <div class="stat"><b>Voortgang</b>${pct(c).toFixed(1)}%</div>
+              <div class="stat"><b>Voortgang</b>${pct(c).toFixed(0)}%</div>
               <div class="stat"><b>Raised</b>${Number(c.raised).toFixed(2)} ${UNIT[c.chain]}</div>
               <div class="stat"><b>Doel</b>${goalOf(c)} ${UNIT[c.chain]}</div>
-              <div class="stat"><b>24h vol</b>${c.vol}</div>
+              <div class="stat"><b>Market</b>${esc(c.vol || "—")}</div>
             </div>
-            <div class="bar" style="height:10px;margin-top:14px"><i style="width:${pct(c)}%"></i></div>
-            <p class="muted" style="font-size:12px;margin-top:8px">${escapeHtml((c.desc || "").slice(0, 280))}</p>
-            ${c.address ? `<p class="tick" style="margin-top:8px;word-break:break-all">${escapeHtml(c.address)}</p>` : ""}
-            <p class="muted" style="font-size:12px;margin-top:10px">${c.vol ? "Market: " + escapeHtml(c.vol) : ""}</p>
+            <div class="bar" style="height:8px;margin-top:16px"><i style="width:${pct(c)}%"></i></div>
+            <p class="lede" style="margin-top:14px">${esc((c.desc || "Geen beschrijving.").slice(0, 280))}</p>
+            <p class="tick" style="margin-top:10px;word-break:break-all">${esc(c.address || "")}</p>
           </div>
           <div class="panel">
-            <label>Bedrag (${UNIT[c.chain]})</label>
-            <input value="${c.chain === "rh" ? "0.05" : "0.5"}" />
-            <div class="row" style="margin-top:10px">
-              <button class="btn btn-buy" type="button" onclick="window.open('${c.trade || (c.chain === "rh" ? PONS : PUMP)}','_blank','noopener')">Trade live</button>
-              <button class="btn btn-sell" type="button" onclick="window.open('${c.link || (c.chain === "rh" ? PONS : PUMP)}','_blank','noopener')">Open pad</button>
+            <p class="kicker">${g ? "Graduated" : "Op de curve"}</p>
+            <div class="split" style="margin-top:14px">
+              <button class="btn btn-lime" type="button" onclick="window.open('${esc(pad)}','_blank','noopener')">Open munt</button>
+              <button class="btn btn-violet" type="button" onclick="window.open('${esc(chart)}','_blank','noopener')">Chart</button>
             </div>
-            <p class="warn">Trade en pad openen de officiële site. DualLaunch is alleen het overzicht.</p>
+            <p class="warn">${c.chain === "rh" ? "Open munt gaat naar de PONS-pagina van dit contract. Chart is Dexscreener (robinhood/adres)." : "Open munt gaat naar pump.fun/coin/… van deze mint."}</p>
           </div>
         </div>`;
     }
-
-    function simTrade(id, dir) {
-      const c = coins.find(x => x.id === id);
-      const step = c.chain === "rh" ? 0.08 : 2.2;
-      c.raised = Math.max(0.05, Math.min(GOAL[c.chain] * 1.05, c.raised + dir * step));
-      c.chg += dir * 2.3;
-      renderCoin(id);
-      toast(dir > 0 ? "Demo-buy: curve omhoog." : "Demo-sell: curve omlaag.");
-    }
-
-    const PONS = "https://www.ponsfamily.com/launchpad";
-    const PUMP = "https://pump.fun/create";
     const RH = {
-      chainId: "0x1237",
-      chainName: "Robinhood Chain",
+      chainId: "0x1237", chainName: "Robinhood Chain",
       nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 },
       rpcUrls: ["https://rpc.mainnet.chain.robinhood.com"],
       blockExplorerUrls: ["https://robinhoodchain.blockscout.com"]
     };
-
     function short(a) { return a ? a.slice(0, 6) + "…" + a.slice(-4) : ""; }
-
     async function connectEvm() {
       const eth = window.ethereum;
-      if (!eth) { toast("Installeer MetaMask, Rabby of een andere EVM-wallet."); return; }
+      if (!eth) { toast("Installeer MetaMask of Rabby."); return; }
       try {
         const acc = await eth.request({ method: "eth_requestAccounts" });
-        try {
-          await eth.request({ method: "wallet_switchEthereumChain", params: [{ chainId: RH.chainId }] });
-        } catch (e) {
-          if (e.code === 4902 || (e.data && e.data.originalError && e.data.originalError.code === 4902)) {
-            await eth.request({ method: "wallet_addEthereumChain", params: [RH] });
-          } else if (e.code !== 4001) throw e;
+        try { await eth.request({ method: "wallet_switchEthereumChain", params: [{ chainId: RH.chainId }] }); }
+        catch (e) {
+          if (e.code === 4902) await eth.request({ method: "wallet_addEthereumChain", params: [RH] });
+          else if (e.code !== 4001) throw e;
         }
         $("btnEvm").textContent = short(acc[0]) + " · RH";
-        toast("EVM-wallet verbonden. Zet netwerk op Robinhood Chain (4663).");
-      } catch (e) {
-        toast(e.message || "EVM-connect geannuleerd.");
-      }
+      } catch (e) { toast(e.message || "EVM geannuleerd"); }
     }
-
     async function connectSol() {
       const sol = window.solana || window.phantom?.solana;
-      if (!sol) { toast("Installeer Phantom, Backpack of Solflare."); return; }
+      if (!sol) { toast("Installeer Phantom."); return; }
       try {
         const res = await sol.connect();
-        const pk = res.publicKey ? res.publicKey.toString() : sol.publicKey.toString();
-        $("btnSolW").textContent = short(pk) + " · SOL";
-        toast("Solana-wallet verbonden.");
-      } catch (e) {
-        toast(e.message || "Solana-connect geannuleerd.");
-      }
+        $("btnSolW").textContent = short((res.publicKey || sol.publicKey).toString()) + " · SOL";
+      } catch (e) { toast(e.message || "Solana geannuleerd"); }
     }
-
-    function openTrade(ch) {
-      window.open(ch === "rh" ? "https://www.ponsfamily.com/launchpad" : "https://pump.fun/", "_blank", "noopener");
-    }
-
-    async function launchOfficial() {
-      if (chain === "rh") {
-        await connectEvm();
-        window.open(PONS, "_blank", "noopener");
-        toast("PONS geopend. Vul naam/ticker daar in en teken in je wallet.");
-      } else {
-        await connectSol();
-        window.open(PUMP, "_blank", "noopener");
-        toast("pump.fun/create geopend. Teken de create-tx in Phantom.");
-      }
-    }
-
     $("btnEvm").onclick = connectEvm;
     $("btnSolW").onclick = connectSol;
-    $("btnRh").onclick = () => { chain = "rh"; $("btnRh").className = "chain-btn active-rh"; $("btnSol").className = "chain-btn"; $("feeLine").textContent = "Fee ~0.0005 ETH · pair WETH · goal 4.2 ETH · PONS"; };
-    $("btnSol").onclick = () => { chain = "sol"; $("btnSol").className = "chain-btn active-sol"; $("btnRh").className = "chain-btn"; $("feeLine").textContent = "Fee op pump.fun (SOL) · bonding curve"; };
-
-    $("launchForm").onsubmit = (e) => { e.preventDefault(); launchOfficial(); };
-    $("launchDemo").onclick = () => {
-      const f = new FormData($("launchForm"));
-      if (!f.get("name") || !f.get("symbol")) { toast("Vul naam en ticker in voor de demo."); return; }
-      const id = "u-" + Date.now();
-      coins.unshift({
-        id, name: f.get("name"), symbol: String(f.get("symbol")).toUpperCase(),
-        chain, raised: chain === "rh" ? 0.12 : 3.4, chg: 12, vol: "—",
-        desc: f.get("desc") || "Demo op DualLaunch-board."
-      });
-      localStorage.setItem("dl-coins", JSON.stringify(coins));
-      renderBoard();
-      show("coin", id);
+    $("btnRh").onclick = () => { chain = "rh"; $("btnRh").className = "chain-btn active-rh"; $("btnSol").className = "chain-btn"; $("feeLine").textContent = "~0.0005 ETH launch fee op PONS"; };
+    $("btnSol").onclick = () => { chain = "sol"; $("btnSol").className = "chain-btn active-sol"; $("btnRh").className = "chain-btn"; $("feeLine").textContent = "Create op pump.fun (SOL)"; };
+    $("launchForm").onsubmit = async (e) => {
+      e.preventDefault();
+      if (chain === "rh") { await connectEvm(); window.open(PONS_CREATE, "_blank", "noopener"); }
+      else { await connectSol(); window.open(PUMP_CREATE, "_blank", "noopener"); }
     };
-
     async function loadFeed() {
       const status = $("feedStatus");
       try {
         const r = await fetch("/api/feed");
         const data = await r.json();
-        if (!data.ok) throw new Error(data.error || "feed fout");
+        if (!data.ok) throw new Error(data.error || "feed");
         coins = data.coins || [];
-        if (status) status.textContent = coins.length + " live munten · PONS + pump.fun";
+        if (status) status.textContent = coins.length + " live · PONS + pump.fun";
         renderBoard();
       } catch (e) {
-        if (status) status.textContent = "Feed kon niet laden. Upload ook de map api/ naar GitHub.";
+        if (status) status.textContent = "Feed niet geladen — check of api/feed.js op Vercel staat.";
       }
     }
     loadFeed();
