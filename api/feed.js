@@ -2,6 +2,7 @@ module.exports = async function handler(req, res) {
   res.setHeader("Cache-Control", "s-maxage=4, stale-while-revalidate=12");
   res.setHeader("Access-Control-Allow-Origin", "*");
   const limit = Math.min(Number(req.query.limit) || 30, 50);
+  const hdr = { accept: "application/json" };
 
   try {
     const pumpQs = (sort) =>
@@ -11,16 +12,36 @@ module.exports = async function handler(req, res) {
       sort +
       "&order=DESC&includeNsfw=false";
 
-    const [ponsRes, pumpNewRes, pumpHotRes] = await Promise.all([
-      fetch("https://www.ponsfamily.com/api/pons-launches", { headers: { accept: "application/json" } }),
-      fetch(pumpQs("created_timestamp"), { headers: { accept: "application/json" } }),
-      fetch(pumpQs("last_trade_timestamp") + "&complete=false", { headers: { accept: "application/json" } })
+    const ponsExplore = (sort, page) =>
+      "https://www.ponsfamily.com/api/pons-launches?explore=1&sort=" +
+      sort +
+      "&age=all&page=" +
+      page +
+      "&includeGraduated=true";
+
+    const [ponsNewRes, ponsBuyRes, ponsP2Res, pumpNewRes, pumpHotRes] = await Promise.all([
+      fetch(ponsExplore("newest", 1), { headers: hdr }),
+      fetch(ponsExplore("recentBuys", 1), { headers: hdr }),
+      fetch(ponsExplore("newest", 2), { headers: hdr }),
+      fetch(pumpQs("created_timestamp"), { headers: hdr }),
+      fetch(pumpQs("last_trade_timestamp") + "&complete=false", { headers: hdr })
     ]);
 
-    const ponsRaw = ponsRes.ok ? await ponsRes.json() : [];
+    const flattenPons = (raw) => {
+      if (!raw) return [];
+      if (Array.isArray(raw)) return raw;
+      const a = (((raw.active || {}).items) || []);
+      const g = (((raw.graduated || {}).items) || []);
+      return a.concat(g);
+    };
+
+    const ponsList = []
+      .concat(flattenPons(ponsNewRes.ok ? await ponsNewRes.json() : null))
+      .concat(flattenPons(ponsBuyRes.ok ? await ponsBuyRes.json() : null))
+      .concat(flattenPons(ponsP2Res.ok ? await ponsP2Res.json() : null));
+
     const pumpNew = pumpNewRes.ok ? await pumpNewRes.json() : [];
     const pumpHot = pumpHotRes.ok ? await pumpHotRes.json() : [];
-    const ponsList = Array.isArray(ponsRaw) ? ponsRaw : [];
 
     const ipfs = (u) => {
       if (!u) return "";
@@ -42,6 +63,7 @@ module.exports = async function handler(req, res) {
       }
       if (!Number.isFinite(pct)) pct = graduated ? 100 : Math.min(99, (raised / goal) * 100);
       const addr = t.token || "";
+      const launched = new Date(t.launchedAt || Date.now()).getTime();
       return {
         id: "rh-" + String(addr).toLowerCase(),
         name: t.name || "Unnamed",
@@ -51,14 +73,14 @@ module.exports = async function handler(req, res) {
         goal,
         vol: t.marketCapUsd != null ? "$" + Math.round(t.marketCapUsd).toLocaleString() : "—",
         mcap: Number(t.marketCapUsd || 0),
-        created: new Date(t.latestBuyAt || t.launchedAt || Date.now()).getTime(),
+        created: launched,
         desc: t.description || "",
         logo: ipfs(t.logo),
         address: addr,
         twitter: t.twitter || (t.socials && t.socials.twitter) || "",
         telegram: t.telegram || (t.socials && t.socials.telegram) || "",
         website: t.website || (t.socials && t.socials.website) || "",
-        lastTrade: t.latestBuyAt ? new Date(t.latestBuyAt).getTime() : new Date(t.launchedAt || Date.now()).getTime(),
+        lastTrade: t.latestBuyAt ? new Date(t.latestBuyAt).getTime() : launched,
         volume: Number(t.liquidityUsd || t.marketCapUsd || 0),
         graduated,
         link: addr ? "https://www.ponsfamily.com/launchpad/" + addr : "https://www.ponsfamily.com/launchpad",
@@ -98,16 +120,9 @@ module.exports = async function handler(req, res) {
       };
     };
 
-    const ponsLive = ponsList.filter((t) => !t.graduated && Number(t.graduationProgressPct || 0) < 100);
-    ponsLive.sort((a, b) => Number(b.marketCapUsd || 0) - Number(a.marketCapUsd || 0));
-    const ponsNew = ponsList
-      .slice()
-      .sort((a, b) => new Date(b.launchedAt || 0) - new Date(a.launchedAt || 0))
-      .slice(0, limit);
-
     const seenP = new Set();
     const pons = [];
-    ponsLive.slice(0, limit).concat(ponsNew).forEach((t) => {
+    ponsList.forEach((t) => {
       const c = mapPons(t);
       if (!c.address || seenP.has(c.id)) return;
       seenP.add(c.id);
