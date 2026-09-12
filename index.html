@@ -143,6 +143,7 @@
     <div class="nav-links">
       <button id="nav-board" class="on" onclick="show('board')">Board</button>
       <button id="nav-launch" onclick="show('launch')">Launch</button>
+      <button id="nav-wallet" onclick="show('wallet')">Wallet</button>
       <button id="nav-legal" onclick="show('legal')">Disclaimer</button>
     </div>
     <div class="wallets">
@@ -165,16 +166,25 @@
         <input class="search" id="q" placeholder="Zoek naam, ticker of adres" />
       </div>
       <p class="tick" id="feedStatus" style="margin-top:10px">Feed laden…</p>
-      <div class="toolbar">
-        <button class="on" onclick="filterBoard(this,'all')">Alles</button>
-        <button onclick="filterBoard(this,'rh')">Robinhood / PONS</button>
-        <button onclick="filterBoard(this,'sol')">Solana / pump.fun</button>
-        <button onclick="filterBoard(this,'live')">Op de curve</button>
-        <button onclick="filterBoard(this,'grad')">Graduated</button>
-        <button onclick="filterBoard(this,'mine')">Mijn launches</button>
-        <button id="sort-new" class="on" onclick="setSort(this,'new')">Nieuwste</button>
+      <div class="toolbar" id="tb-chain">
+        <button class="on" data-f="all" onclick="filterBoard(this,'all')">Alles</button>
+        <button data-f="rh" onclick="filterBoard(this,'rh')">PONS</button>
+        <button data-f="sol" onclick="filterBoard(this,'sol')">pump.fun</button>
+        <button data-f="live" onclick="filterBoard(this,'live')">Active / curve</button>
+        <button data-f="grad" onclick="filterBoard(this,'grad')">Graduated</button>
+        <button data-f="soon" onclick="filterBoard(this,'soon')">About to graduate</button>
+      </div>
+      <div class="toolbar" id="tb-sort">
+        <button id="sort-new" class="on" onclick="setSort(this,'new')">Newest</button>
+        <button id="sort-trade" onclick="setSort(this,'trade')">Last trade</button>
         <button id="sort-mcap" onclick="setSort(this,'mcap')">Market cap</button>
-        <button id="sort-prog" onclick="setSort(this,'prog')">Voortgang</button>
+        <button id="sort-vol" onclick="setSort(this,'vol')">Volume</button>
+        <button id="sort-prog" onclick="setSort(this,'prog')">Progress</button>
+      </div>
+      <div class="toolbar" id="tb-age">
+        <button class="on" onclick="setAge(this,'all')">All time</button>
+        <button onclick="setAge(this,'24h')">24h</button>
+        <button onclick="setAge(this,'7d')">7d</button>
       </div>
       <div class="table" id="board"></div>
     </section>
@@ -201,6 +211,22 @@
 
     <section id="view-coin" class="view"></section>
 
+    <section id="view-wallet" class="view">
+      <p class="kicker">Account</p>
+      <h1>Wallet</h1>
+      <p class="lede">Saldo en tokens die DualLaunch op dit board kan zien. Swappen blijft op PONS of pump.fun.</p>
+      <div class="stats-strip">
+        <div class="sbox"><b>EVM / Robinhood</b><div id="wEvm">Niet verbonden</div></div>
+        <div class="sbox"><b>Solana</b><div id="wSol">Niet verbonden</div></div>
+      </div>
+      <div class="wallet-bar" style="gap:8px;display:flex;flex-wrap:wrap;margin:12px 0 20px">
+        <button class="btn btn-ghost" type="button" onclick="connectEvm()">Connect / switch RH</button>
+        <button class="btn btn-ghost" type="button" onclick="connectSol()">Connect Solana</button>
+        <button class="btn btn-ghost" type="button" onclick="scanHoldings()">Scan board-tokens</button>
+      </div>
+      <div id="holdings" class="table"></div>
+    </section>
+
     <section id="view-legal" class="view">
       <p class="kicker">Legal</p>
       <h1>Disclaimer</h1>
@@ -219,7 +245,7 @@
     const UNIT = { rh: "ETH", sol: "SOL" };
     const PONS_CREATE = "https://www.ponsfamily.com/launchpad/create";
     const PUMP_CREATE = "https://pump.fun/create";
-    let chain = "rh", filter = "all", sortBy = "new", coins = [];
+    let chain = "rh", filter = "all", sortBy = "new", ageBy = "all", coins = [];
     const $ = (id) => document.getElementById(id);
     const esc = (s) => String(s || "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
     function toast(msg) { const t = $("toast"); t.textContent = msg; t.style.display = "block"; setTimeout(() => t.style.display = "none", 3800); }
@@ -229,7 +255,9 @@
       $("nav-board").classList.toggle("on", name === "board");
       $("nav-launch").classList.toggle("on", name === "launch");
       $("nav-legal").classList.toggle("on", name === "legal");
+      if ($("nav-wallet")) $("nav-wallet").classList.toggle("on", name === "wallet");
       if (name === "coin") renderCoin(id);
+      if (name === "wallet") renderWallet();
       window.scrollTo(0, 0);
     }
     const goalOf = (c) => c.goal || GOAL[c.chain];
@@ -271,15 +299,19 @@
     }
     function filterBoard(btn, f) {
       filter = f;
-      document.querySelectorAll(".toolbar button").forEach((b) => {
-        if (!String(b.id).startsWith("sort-")) b.classList.remove("on");
-      });
+      document.querySelectorAll("#tb-chain button").forEach((b) => b.classList.remove("on"));
       btn.classList.add("on");
       renderBoard();
     }
     function setSort(btn, s) {
       sortBy = s;
-      ["sort-new","sort-mcap","sort-prog"].forEach((id) => $(id).classList.remove("on"));
+      document.querySelectorAll("#tb-sort button").forEach((b) => b.classList.remove("on"));
+      btn.classList.add("on");
+      renderBoard();
+    }
+    function setAge(btn, a) {
+      ageBy = a;
+      document.querySelectorAll("#tb-age button").forEach((b) => b.classList.remove("on"));
       btn.classList.add("on");
       renderBoard();
     }
@@ -293,11 +325,14 @@
     }
     function visible() {
       const q = (($("q") && $("q").value) || "").trim().toLowerCase();
+      const now = Date.now();
       const list = coins.filter((c) => {
         if (filter === "rh" || filter === "sol") { if (c.chain !== filter) return false; }
         if (filter === "live" && graduated(c)) return false;
         if (filter === "grad" && !graduated(c)) return false;
-        if (filter === "mine" && !c.mine) return false;
+        if (filter === "soon" && (graduated(c) || pct(c) < 70)) return false;
+        if (ageBy === "24h" && now - Number(c.created || 0) > 86400000) return false;
+        if (ageBy === "7d" && now - Number(c.created || 0) > 7 * 86400000) return false;
         if (q) {
           const hay = (c.name + " " + c.symbol + " " + (c.address || "")).toLowerCase();
           if (!hay.includes(q)) return false;
@@ -306,7 +341,9 @@
       });
       list.sort((a, b) => {
         if (sortBy === "mcap") return (b.mcap || 0) - (a.mcap || 0);
-        if (sortBy === "prog") return pct(b) - pct(a);
+        if (sortBy === "vol") return (b.volume || 0) - (a.volume || 0);
+        if (sortBy === "trade") return (b.lastTrade || b.created || 0) - (a.lastTrade || a.created || 0);
+        if (sortBy === "prog" || filter === "soon") return pct(b) - pct(a);
         return (b.created || 0) - (a.created || 0);
       });
       return list;
@@ -442,6 +479,71 @@
     function paintWallet() {
       const el = $("statWallet");
       if (el) el.textContent = walletLabel();
+      if ($("wEvm")) $("wEvm").innerHTML = evmAddr ? esc(short(evmAddr)) + (evmBal ? "<br>" + evmBal + " ETH" : "") : "Niet verbonden";
+      if ($("wSol")) $("wSol").innerHTML = solAddr ? esc(short(solAddr)) + (solBal ? "<br>" + solBal + " SOL" : "") : "Niet verbonden";
+    }
+    async function evmCall(to, data) {
+      const r = await fetch("https://rpc.mainnet.chain.robinhood.com", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_call", params: [{ to, data }, "latest"] })
+      });
+      return (await r.json()).result;
+    }
+    async function scanHoldings() {
+      const box = $("holdings");
+      if (box) box.innerHTML = "<div class='lede'>Bezig met scannen…</div>";
+      const found = [];
+      if (evmAddr) {
+        const pad = evmAddr.replace("0x","").toLowerCase().padStart(64,"0");
+        const data = "0x70a08231" + pad;
+        const rh = coins.filter((c) => c.chain === "rh" && c.address).slice(0, 24);
+        for (const c of rh) {
+          try {
+            const raw = await evmCall(c.address, data);
+            const n = raw ? Number(BigInt(raw)) / 1e18 : 0;
+            if (n > 0) found.push({ c, n, unit: c.symbol });
+          } catch (e) {}
+        }
+      }
+      if (solAddr) {
+        try {
+          const r = await fetch("https://api.mainnet-beta.solana.com", {
+            method: "POST", headers: { "content-type": "application/json" },
+            body: JSON.stringify({ jsonrpc:"2.0", id:1, method:"getTokenAccountsByOwner", params:[solAddr, { programId:"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" }, { encoding:"jsonParsed" }] })
+          });
+          const d = await r.json();
+          const accs = (((d.result || {}).value) || []);
+          const byMint = {};
+          accs.forEach((a) => {
+            const info = (((a.account || {}).data || {}).parsed || {}).info || {};
+            const mint = info.mint;
+            const amt = Number((info.tokenAmount || {}).uiAmount || 0);
+            if (mint && amt > 0) byMint[mint] = amt;
+          });
+          coins.filter((c) => c.chain === "sol").forEach((c) => {
+            if (byMint[c.address]) found.push({ c, n: byMint[c.address], unit: c.symbol });
+          });
+        } catch (e) {}
+      }
+      if (!box) return;
+      if (!found.length) {
+        box.innerHTML = "<div class='lede'>Geen board-tokens gevonden in deze wallet. Connect eerst, daarna Scan.</div>";
+        return;
+      }
+      box.innerHTML = found.map(({ c, n }) => `
+        <button class="tile" onclick="show('coin','${esc(c.id)}')">
+          <div class="tile-top"><div class="ident">${av(c)}<div>
+            <div class="name">${esc(c.name)}</div>
+            <div class="tick">${n.toLocaleString(undefined,{maximumFractionDigits:2})} ${esc(c.symbol)}</div>
+          </div></div></div>
+        </button>`).join("");
+    }
+    function renderWallet() {
+      paintWallet();
+      if ((evmAddr || solAddr) && $("holdings") && !$("holdings").dataset.ready) {
+        $("holdings").dataset.ready = "1";
+        scanHoldings();
+      }
     }
     async function refreshEvmBal() {
       if (!evmAddr) return;
@@ -506,7 +608,8 @@
         $("btnEvm").textContent = short(acc[0]) + " · RH";
         paintWallet();
         refreshEvmBal();
-        toast("Robinhood Chain actief. Saldo wordt geladen.");
+        toast("Robinhood Chain actief.");
+        show('wallet');
       } catch (e) { toast(e.message || "EVM geannuleerd"); }
     }
     async function connectSol() {
@@ -518,7 +621,8 @@
         $("btnSolW").textContent = short(solAddr) + " · SOL";
         paintWallet();
         refreshSolBal();
-        toast("Solana verbonden. Saldo wordt geladen.");
+        toast("Solana verbonden.");
+        show('wallet');
       } catch (e) { toast(e.message || "Solana geannuleerd"); }
     }
     $("btnEvm").onclick = connectEvm;
