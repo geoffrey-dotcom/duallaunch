@@ -18,6 +18,12 @@
       --dim: #8b8c9a;
       --lime: #b8ff3a;
       --violet: #7b4dff;
+      --jupiter-plugin-primary: 184, 255, 58;
+      --jupiter-plugin-background: 7, 7, 12;
+      --jupiter-plugin-primaryText: 243, 244, 248;
+      --jupiter-plugin-warning: 251, 191, 36;
+      --jupiter-plugin-interactive: 20, 20, 34;
+      --jupiter-plugin-module: 16, 16, 24;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -92,7 +98,7 @@
     .split { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .chain-btn { background: #f7f8fb; border: 1px solid var(--line); color: var(--dim); padding: 12px; border-radius: 10px; cursor: pointer; font-weight: 700; font-family: inherit; }
     .active-rh, .active-sol { border-color: var(--lime); color: var(--lime); background: #12121a; }
-    .chart-wrap { margin-top:16px; } .chart-frame { width:100%; height:min(420px,55vh); border:0; border-radius:12px; background:#fff; }
+    .chart-wrap { margin-top:18px; background:transparent; } .chart-frame { width:100%; height:min(480px,58vh); border:0; border-radius:16px; background:#07070c; display:block; }
     .detail { display: grid; grid-template-columns: 1.35fr .75fr; gap: 20px; }
     .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 18px; }
     .stat { background: #0c0c14; border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
@@ -104,6 +110,11 @@
     }
     .stats-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin: 8px 0 24px; }
     .sbox { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px 18px; }
+        .swap-shell {
+      width: min(420px, 100%); min-height: 540px; margin-top: 8px;
+      background: transparent; border: 0; overflow: hidden; border-radius: 16px;
+    }
+    #jupiter-plugin, #jupiter-plugin > div { width: 100% !important; background: transparent !important; }
     .launch-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; max-width:760px; margin-top:8px; }
     .launch-card {
       display:flex; flex-direction:column; gap:10px; text-decoration:none; color:inherit;
@@ -221,7 +232,7 @@
         <button class="on" id="swapSolBtn" type="button">Solana / Jupiter</button>
         <button id="swapRhBtn" type="button">Robinhood / PONS</button>
       </div>
-      <div id="jupBox" class="panel" style="max-width:480px;min-height:560px;padding:0;overflow:hidden">
+      <div id="jupBox" class="swap-shell">
         <div id="jupiter-plugin"></div>
       </div>
       <div id="rhSwap" class="panel" style="max-width:480px;display:none">
@@ -316,7 +327,7 @@
     function embedChart(c) {
       const chain = c.chain === "rh" ? "robinhood" : "solana";
       let url = c.chart || ("https://dexscreener.com/" + chain + "/" + (c.address || ""));
-      if (!url.includes("embed=1")) url += (url.includes("?") ? "&" : "?") + "embed=1&theme=dark&info=0&trades=0";
+      if (!url.includes("embed=1")) url += (url.includes("?") ? "&" : "?") + "embed=1&theme=dark&info=0&trades=0&chartLeftToolbar=0&loadChartSettings=0";
       return url;
     }
     function filterBoard(btn, f) {
@@ -457,8 +468,8 @@
               <div class="stat"><b>Doel</b>${goalOf(c)} ${UNIT[c.chain]}</div>
               <div class="stat"><b>Market</b>${esc(c.vol || "—")}</div>
             </div>
-            <div class="chart-wrap"><p class="tick" id="chartHint">Chart laden…</p>
-            <iframe class="chart-frame" id="dexChart" title="DexScreener" src="about:blank" loading="lazy" allow="clipboard-write"></iframe></div>
+            <div class="chart-wrap">
+            <iframe class="chart-frame" id="dexChart" title="Chart" src="about:blank" loading="lazy" allow="clipboard-write"></iframe></div>
             <div class="bar" style="height:8px;margin-top:16px"><i style="width:${pct(c)}%"></i></div>
             <p class="lede" style="margin-top:14px">${esc((c.desc || "Geen beschrijving.").slice(0, 280))}</p>
             ${socialBtns(c, false)}
@@ -485,7 +496,7 @@
       requestAnimationFrame(() => {
         setTimeout(() => {
           if (frame) frame.src = src;
-          if (hint) hint.textContent = "DexScreener-chart · even geduld bij de eerste load";
+          if (hint) hint.textContent = "";
         }, 80);
       });
 
@@ -656,7 +667,12 @@
     function initSwap() {
       if (!jupReady && window.Jupiter && $("jupiter-plugin")) {
         try {
-          window.Jupiter.init({ displayMode: "integrated", integratedTargetId: "jupiter-plugin" });
+          window.Jupiter.init({
+            displayMode: "integrated",
+            integratedTargetId: "jupiter-plugin",
+            branding: { name: "DualLaunch" },
+            containerStyles: { width: "100%", borderRadius: "16px", background: "transparent" }
+          });
           jupReady = true;
         } catch (e) { toast("Jupiter plugin kon niet starten"); }
       }
