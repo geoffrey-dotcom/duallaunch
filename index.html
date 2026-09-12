@@ -99,8 +99,8 @@
     .split { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .chain-btn { background: #f7f8fb; border: 1px solid var(--line); color: var(--dim); padding: 12px; border-radius: 10px; cursor: pointer; font-weight: 700; font-family: inherit; }
     .active-rh, .active-sol { border-color: var(--lime); color: var(--lime); background: #12121a; }
-    .chart-wrap { margin-top:18px; background:#0a0a12; border:1px solid var(--line); border-radius:16px; padding:8px; }
-    .live-chart { width:100%; height:220px; display:block; }
+    .chart-wrap { margin-top:18px; background:#07070c; border-radius:16px; overflow:hidden; min-height:420px; }
+    .chart-frame { width:100%; height:420px; border:0; display:block; background:#07070c; }
     .detail { display: grid; grid-template-columns: 1.35fr .75fr; gap: 20px; }
     .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 18px; }
     .stat { background: #0c0c14; border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
@@ -539,7 +539,9 @@
               <div class="stat"><b>Doel</b>${goalOf(c)} ${UNIT[c.chain]}</div>
               <div class="stat"><b>Market</b>${esc(c.vol || "—")}</div>
             </div>
-            <div class="chart-wrap" id="coinChart">${liveChart(c, 640, 220)}</div>
+            <div class="chart-wrap">
+              <iframe class="chart-frame" id="dexChart" title="DexScreener" src="${esc(embedChart(c))}" allow="clipboard-write; fullscreen" referrerpolicy="no-referrer-when-downgrade"></iframe>
+            </div>
             <div class="bar" style="height:8px;margin-top:16px"><i style="width:${pct(c)}%"></i></div>
             <p class="lede" style="margin-top:14px">${esc((c.desc || "No description.").slice(0, 280))}</p>
             ${socialBtns(c, false)}
@@ -549,7 +551,7 @@
             <p class="kicker">${g ? "Graduated" : "On the curve"}</p>
             <div class="split" style="margin-top:14px">
               <button class="btn btn-lime" type="button" onclick="window.open('${esc(pad)}','_blank','noopener')">Open coin</button>
-              <button class="btn btn-violet" type="button" onclick="window.open('${esc(pad)}','_blank','noopener')">Official chart</button>
+              <button class="btn btn-violet" type="button" onclick="window.open('${esc(chart)}','_blank','noopener')">Open DexScreener</button>
             </div>
             <div class="split" style="margin-top:8px">
               <button class="btn btn-ghost" type="button" onclick="copyText('${esc(c.address || "")}')">Copy contract</button>
@@ -557,10 +559,9 @@
             </div>
             <p class="tick" style="margin-top:10px">${c.chain === "rh" ? "Explorer: robinhoodchain.blockscout.com" : "Explorer: solscan.io"}</p>
             <button class="btn btn-ghost" style="width:100%;margin-top:8px" type="button" onclick="window.open('${c.chain === "rh" ? "https://robinhoodchain.blockscout.com/token/" : "https://solscan.io/token/"}' + '${esc(c.address || "")}','_blank','noopener')">Open explorer</button>
-            <p class="warn">${c.chain === "rh" ? "Official chart opens the PONS token page. They block embeds on other sites." : "Official chart opens pump.fun. They block embeds on other sites."}</p>
+            <p class="warn">${c.chain === "rh" ? "Chart is DexScreener. Open coin goes to PONS." : "Chart is DexScreener. Open coin goes to pump.fun."}</p>
           </div>
         </div>`;
-
     }
 
     let evmAddr = "", solAddr = "", evmBal = "", solBal = "";
