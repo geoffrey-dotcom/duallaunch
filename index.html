@@ -103,7 +103,7 @@
     .chain-btn { background: #09090d; border: 1px solid var(--line); color: var(--dim); padding: 12px; border-radius: 10px; cursor: pointer; font-weight: 700; font-family: inherit; }
     .active-rh { border-color: var(--lime); color: var(--lime); }
     .active-sol { border-color: var(--violet); color: #c9b8ff; }
-    .chart-frame { width:100%; height:min(560px,70vh); border:0; border-radius:12px; background:#0b0b10; }
+    .chart-wrap { margin-top:14px; } .chart-frame { width:100%; height:min(420px,55vh); border:0; border-radius:12px; background:#0b0b10; }
     .detail { display: grid; grid-template-columns: 1.35fr .75fr; gap: 14px; }
     .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 14px; }
     .stat { background: #09090d; border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
@@ -294,7 +294,8 @@
               <div class="stat"><b>Doel</b>${goalOf(c)} ${UNIT[c.chain]}</div>
               <div class="stat"><b>Market</b>${esc(c.vol || "—")}</div>
             </div>
-            <iframe class="chart-frame" title="DexScreener" src="${esc(embedChart(c))}" allow="clipboard-write"></iframe>
+            <div class="chart-wrap"><p class="tick" id="chartHint">Chart laden…</p>
+            <iframe class="chart-frame" id="dexChart" title="DexScreener" src="about:blank" loading="lazy" allow="clipboard-write"></iframe></div>
             <div class="bar" style="height:8px;margin-top:16px"><i style="width:${pct(c)}%"></i></div>
             <p class="lede" style="margin-top:14px">${esc((c.desc || "Geen beschrijving.").slice(0, 280))}</p>
             <p class="tick" style="margin-top:10px;word-break:break-all">${esc(c.address || "")}</p>
@@ -308,6 +309,16 @@
             <p class="warn">${c.chain === "rh" ? "Open munt gaat naar de PONS-pagina van dit contract. Chart is Dexscreener (robinhood/adres)." : "Open munt gaat naar pump.fun/coin/… van deze mint."}</p>
           </div>
         </div>`;
+      const frame = document.getElementById("dexChart");
+      const hint = document.getElementById("chartHint");
+      const src = embedChart(c);
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          if (frame) frame.src = src;
+          if (hint) hint.textContent = "DexScreener-chart · even geduld bij de eerste load";
+        }, 80);
+      });
+
     }
     const RH = {
       chainId: "0x1237", chainName: "Robinhood Chain",
@@ -366,7 +377,7 @@
       }
     }
     loadFeed();
-    setInterval(loadFeed, 8000);
+    setInterval(loadFeed, 20000);
   </script>
 </body>
 </html>
