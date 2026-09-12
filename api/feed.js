@@ -41,6 +41,9 @@ module.exports = async function handler(req, res) {
         desc: t.description || "",
         logo: ipfs(t.logo),
         address: addr,
+        twitter: t.twitter || (t.socials && t.socials.twitter) || "",
+        telegram: t.telegram || (t.socials && t.socials.telegram) || "",
+        website: t.website || (t.socials && t.socials.website) || "",
         graduated: !!t.graduated || pct >= 100,
         link: addr ? "https://www.ponsfamily.com/launchpad/" + addr : "https://www.ponsfamily.com/launchpad",
         chart: addr ? "https://dexscreener.com/robinhood/" + addr : ""
@@ -62,6 +65,9 @@ module.exports = async function handler(req, res) {
         desc: t.description || "",
         logo: t.image_uri || "",
         address: mint,
+        twitter: t.twitter || "",
+        telegram: t.telegram || "",
+        website: t.website || "",
         graduated: !!t.complete,
         link: mint ? "https://pump.fun/coin/" + mint : "https://pump.fun/",
         chart: mint ? "https://dexscreener.com/solana/" + mint : ""
