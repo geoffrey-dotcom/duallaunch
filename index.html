@@ -552,9 +552,9 @@
               <div class="tick">$${esc(c.symbol)} · ${c.chain === "rh" ? "PONS / Robinhood Chain" : "pump.fun / Solana"}</div>
             </div></div>
             <div class="stats">
-              <div class="stat"><b>Voortgang</b>${pct(c).toFixed(0)}%</div>
+              <div class="stat"><b>Progress</b>${pct(c).toFixed(0)}%</div>
               <div class="stat"><b>Raised</b>${Number(c.raised).toFixed(2)} ${UNIT[c.chain]}</div>
-              <div class="stat"><b>Doel</b>${goalOf(c)} ${UNIT[c.chain]}</div>
+              <div class="stat"><b>Target</b>${goalOf(c)} ${UNIT[c.chain]}</div>
               <div class="stat"><b>Market</b>${esc(c.vol || "—")}</div>
             </div>
             <div class="chart-wrap">
