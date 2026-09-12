@@ -1,5 +1,5 @@
 module.exports = async function handler(req, res) {
-  res.setHeader("Cache-Control", "s-maxage=20, stale-while-revalidate=60");
+  res.setHeader("Cache-Control", "s-maxage=8, stale-while-revalidate=20");
   res.setHeader("Access-Control-Allow-Origin", "*");
 
   const limit = Math.min(Number(req.query.limit) || 40, 80);
@@ -44,6 +44,8 @@ module.exports = async function handler(req, res) {
         raised,
         goal,
         vol: t.marketCapUsd != null ? "$" + Math.round(t.marketCapUsd).toLocaleString() : "—",
+        mcap: Number(t.marketCapUsd || 0),
+        created: new Date(t.launchedAt || Date.now()).getTime(),
         desc: t.description || "",
         logo: ipfs(t.logo),
         address: addr,
@@ -70,6 +72,8 @@ module.exports = async function handler(req, res) {
         vol: t.usd_market_cap
           ? "$" + Math.round(t.usd_market_cap).toLocaleString()
           : "—",
+        mcap: Number(t.usd_market_cap || 0),
+        created: Number(t.created_timestamp || Date.now()),
         desc: t.description || "",
         logo: t.image_uri || "",
         address: mint,
