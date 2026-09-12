@@ -497,15 +497,19 @@
       e.preventDefault();
       const f = new FormData($("launchForm"));
       if (!f.get("name") || !f.get("symbol")) { toast("Vul naam en ticker in."); return; }
-      window._pendingLaunch = { name: f.get("name"), symbol: String(f.get("symbol")).toUpperCase(), desc: f.get("desc") || "", chain };
+      const pending = { name: String(f.get("name")).trim(), symbol: String(f.get("symbol")).trim().toUpperCase(), desc: String(f.get("desc") || "").trim(), chain };
+      window._pendingLaunch = pending;
+      const q = new URLSearchParams({ name: pending.name, symbol: pending.symbol, ticker: pending.symbol, description: pending.desc });
+      const paste = pending.name + "\n" + pending.symbol + (pending.desc ? "\n" + pending.desc : "");
+      try { await navigator.clipboard.writeText(paste); } catch (e) {}
       if (chain === "rh") {
         await connectEvm();
-        window.open(PONS_CREATE, "_blank", "noopener");
-        toast("PONS create geopend. Vul naam/ticker daar in en teken.");
+        window.open(PONS_CREATE + "?" + q.toString(), "_blank", "noopener");
+        toast("Naam en ticker staan op het klembord. PONS vult de form niet automatisch — plak ze daar.");
       } else {
         await connectSol();
-        window.open(PUMP_CREATE, "_blank", "noopener");
-        toast("pump.fun/create geopend. Maak de munt daar en kopieer de mint.");
+        window.open(PUMP_CREATE + "?" + q.toString(), "_blank", "noopener");
+        toast("Naam en ticker staan op het klembord. pump.fun vult de form niet automatisch — plak ze daar.");
       }
       $("afterLaunch").style.display = "block";
     };
