@@ -10,13 +10,13 @@
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg: #050506;
-      --panel: #0c0c10;
-      --line: #1c1c24;
-      --text: #f2f2f5;
-      --dim: #8b8b98;
-      --lime: #c8ff3d;
-      --violet: #7a5cff;
+      --bg: #eef1f6;
+      --panel: #ffffff;
+      --line: #dfe3ea;
+      --text: #14161c;
+      --dim: #667085;
+      --lime: #1f8a4c;
+      --violet: #4f46e5;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -26,108 +26,98 @@
       letter-spacing: -.01em;
       min-height: 100vh;
     }
-    body:before {
-      content: "";
-      position: fixed; inset: 0;
-      background:
-        radial-gradient(900px 400px at 10% -10%, rgba(200,255,61,.08), transparent 50%),
-        radial-gradient(700px 360px at 100% 0%, rgba(122,92,255,.12), transparent 45%);
-      pointer-events: none;
+    .shell { display: flex; min-height: 100vh; }
+    aside.side {
+      width: 240px; flex: 0 0 240px; background: #fff;
+      border-right: 1px solid var(--line); padding: 28px 18px;
+      display: flex; flex-direction: column; gap: 8px;
+      position: sticky; top: 0; height: 100vh;
     }
-    nav {
-      display: flex; align-items: center; justify-content: space-between; gap: 12px;
-      padding: 12px 28px; border-bottom: 1px solid var(--line);
-      position: sticky; top: 0; z-index: 20;
-      background: rgba(5,5,6,.86); backdrop-filter: blur(18px);
-    }
-    .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: -.04em; cursor: pointer; }
-    .brand img { width: 32px; height: 32px; object-fit: cover; border-radius: 8px; }
-    .nav-links { display: flex; gap: 4px; }
-    .nav-links button, .btn {
-      border: 0; cursor: pointer; font-family: inherit; font-weight: 650;
-    }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: -.04em; cursor: pointer; margin-bottom: 28px; }
+    .brand img { width: 36px; height: 36px; object-fit: cover; border-radius: 10px; }
+    .nav-links { display: flex; flex-direction: column; gap: 4px; }
+    .nav-links button, .btn { border: 0; cursor: pointer; font-family: inherit; font-weight: 650; }
     .nav-links button {
-      background: transparent; color: var(--dim); padding: 8px 12px; border-radius: 8px;
+      background: transparent; color: var(--dim); padding: 11px 12px; border-radius: 10px; text-align: left;
     }
-    .nav-links button.on { color: var(--text); background: #16161c; }
+    .nav-links button.on { color: #fff; background: #14161c; }
     .btn { border-radius: 10px; padding: 10px 14px; }
-    .btn-ghost { background: #121218; color: var(--text); border: 1px solid var(--line); }
-    .btn-lime { background: var(--lime); color: #111; width: 100%; }
-    .btn-violet { background: #1a1430; color: #c9b8ff; border: 1px solid #3b2d6b; width: 100%; }
-    .wallets { display: flex; gap: 8px; flex-wrap: wrap; }
-    main { width: min(1280px, calc(100% - 40px)); margin: 0 auto; padding: 36px 0 72px; position: relative; }
-    .kicker { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--dim); letter-spacing: .14em; text-transform: uppercase; }
-    h1 { font-size: clamp(28px, 4.2vw, 44px); line-height: 1.05; letter-spacing: -.04em; margin: 8px 0 10px; font-weight: 700; }
-    h1 em { font-style: normal; color: var(--lime); }
-    .lede { color: var(--dim); max-width: 560px; line-height: 1.5; }
-    .toolbar { display: flex; gap: 6px; flex-wrap: wrap; margin: 22px 0 12px; }
+    .btn-ghost { background: #fff; color: var(--text); border: 1px solid var(--line); }
+    .btn-lime { background: #14161c; color: #fff; width: 100%; }
+    .btn-violet { background: #eef0ff; color: #3730a3; border: 1px solid #c7d2fe; width: 100%; }
+    .wallets { margin-top: auto; display: flex; flex-direction: column; gap: 8px; }
+    main { flex: 1; padding: 48px 48px 80px; max-width: 1180px; }
+    .kicker { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--dim); letter-spacing: .16em; text-transform: uppercase; }
+    h1 { font-size: clamp(28px, 3.6vw, 40px); line-height: 1.15; letter-spacing: -.03em; margin: 16px 0 14px; font-weight: 700; }
+    .lede { color: var(--dim); max-width: 640px; line-height: 1.65; margin-bottom: 28px; }
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin: 28px 0 20px; }
     .toolbar button {
-      background: transparent; border: 1px solid var(--line); color: var(--dim);
-      padding: 7px 11px; border-radius: 999px; cursor: pointer; font-family: inherit; font-size: 13px;
+      background: #fff; border: 1px solid var(--line); color: var(--dim);
+      padding: 8px 12px; border-radius: 999px; cursor: pointer; font-family: inherit; font-size: 13px;
     }
-    .toolbar button.on { border-color: var(--lime); color: var(--lime); }
-    .table {
-      display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
-      background: transparent; border: 0;
-    }
+    .toolbar button.on { border-color: #14161c; color: #14161c; background: #fff; }
+    .table { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
     .tile {
-      display: flex; flex-direction: column; gap: 10px;
+      display: flex; flex-direction: column; gap: 12px;
       text-align: left; width: 100%; cursor: pointer; font-family: inherit; color: inherit;
-      background: linear-gradient(180deg, #101016, #0b0b10); border: 1px solid var(--line); border-radius: 18px; padding: 14px;
-      transition: border-color .15s ease, transform .15s ease;
+      background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 16px;
+      box-shadow: 0 1px 0 rgba(16,24,40,.03);
     }
-    .tile:hover { border-color: #3a3a48; transform: translateY(-2px); }
+    .tile:hover { border-color: #c8ced8; box-shadow: 0 10px 30px rgba(16,24,40,.06); }
     .tile-top { display: flex; gap: 12px; align-items: flex-start; }
     .ident { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1; }
-    .av {
-      width: 56px; height: 56px; border-radius: 14px; object-fit: cover; background: #191922; flex: 0 0 auto;
-    }
+    .av { width: 52px; height: 52px; border-radius: 14px; object-fit: cover; background: #eceff3; flex: 0 0 auto; }
+    .av-fallback { display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; color:#14161c; }
     .spark { width: 100%; height: 54px; display: block; }
-    .chg { font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 500; white-space: nowrap; }
-    .chg.up { color: var(--lime); } .chg.down { color: #ff6b9a; }
+    .chg { font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 600; white-space: nowrap; }
+    .chg.up { color: #157a3e; } .chg.down { color: #c0354a; }
     .name { font-weight: 750; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .tick { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--dim); }
     .mc { font-family: "IBM Plex Mono", monospace; font-weight: 500; }
-    .bar { height: 5px; background: #191922; border-radius: 99px; overflow: hidden; }
-    .bar > i { display: block; height: 100%; background: linear-gradient(90deg, var(--lime), var(--violet)); }
-    .pct { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--dim); margin-top: 5px; }
-    .badge {
-      font-family: "IBM Plex Mono", monospace; font-size: 10px; padding: 4px 7px; border-radius: 6px;
-      border: 1px solid var(--line); color: var(--dim); justify-self: end;
-    }
-    .badge.g { color: var(--lime); border-color: #3a4a12; }
+    .bar { height: 6px; background: #eceff3; border-radius: 99px; overflow: hidden; }
+    .bar > i { display: block; height: 100%; background: #14161c; }
+    .pct { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--dim); margin-top: 6px; }
     .view { display: none; } .view.on { display: block; }
-    .hero { display: grid; grid-template-columns: 1fr 420px; gap: 28px; }
-    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 16px; }
-    label { display: block; font-size: 12px; color: var(--dim); margin: 10px 0 6px; }
+    .hero { display: grid; grid-template-columns: 1fr 400px; gap: 40px; }
+    .panel { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 20px; }
+    label { display: block; font-size: 12px; color: var(--dim); margin: 12px 0 6px; }
     input, textarea, select {
-      width: 100%; background: #09090d; border: 1px solid var(--line); color: var(--text);
-      border-radius: 10px; padding: 11px; font: inherit;
+      width: 100%; background: #f7f8fb; border: 1px solid var(--line); color: var(--text);
+      border-radius: 10px; padding: 12px; font: inherit;
     }
     textarea { min-height: 72px; }
     .split { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .chain-btn { background: #09090d; border: 1px solid var(--line); color: var(--dim); padding: 12px; border-radius: 10px; cursor: pointer; font-weight: 700; font-family: inherit; }
-    .active-rh { border-color: var(--lime); color: var(--lime); }
-    .active-sol { border-color: var(--violet); color: #c9b8ff; }
-    .chart-wrap { margin-top:14px; } .chart-frame { width:100%; height:min(420px,55vh); border:0; border-radius:12px; background:#0b0b10; }
-    .detail { display: grid; grid-template-columns: 1.35fr .75fr; gap: 14px; }
-    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 14px; }
-    .stat { background: #09090d; border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+    .chain-btn { background: #f7f8fb; border: 1px solid var(--line); color: var(--dim); padding: 12px; border-radius: 10px; cursor: pointer; font-weight: 700; font-family: inherit; }
+    .active-rh, .active-sol { border-color: #14161c; color: #14161c; background: #fff; }
+    .chart-wrap { margin-top:16px; } .chart-frame { width:100%; height:min(420px,55vh); border:0; border-radius:12px; background:#fff; }
+    .detail { display: grid; grid-template-columns: 1.35fr .75fr; gap: 20px; }
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 18px; }
+    .stat { background: #f7f8fb; border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
     .stat b { display: block; color: var(--dim); font-size: 11px; font-weight: 500; margin-bottom: 4px; }
-    .warn { margin-top: 12px; font-size: 12px; color: #cbb48a; line-height: 1.45; }
+    .warn { margin-top: 12px; font-size: 12px; color: #8a6a2b; line-height: 1.45; }
     .toast {
       position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
-      background: #121218; border: 1px solid var(--line); padding: 11px 14px; border-radius: 12px; display: none; z-index: 40;
+      background: #fff; border: 1px solid var(--line); padding: 11px 14px; border-radius: 12px; display: none; z-index: 40;
     }
-    footer { width: min(1280px, calc(100% - 40px)); margin: 0 auto 36px; color: var(--dim); font-size: 12px; border-top: 1px solid var(--line); padding-top: 18px; }
-    @media (max-width: 860px) {
-      .hero, .detail, .stats, .split, .table { grid-template-columns: 1fr; }
-      .badge { justify-self: start; }
+    .stats-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin: 8px 0 24px; }
+    .sbox { background:#fff; border:1px solid var(--line); border-radius:14px; padding:16px 18px; }
+    .sbox b { display:block; font-size:11px; color:var(--dim); font-weight:500; margin-bottom:6px; }
+    .search { width:100%; max-width:360px; margin: 0 0 8px; }
+    .wallet-bar { margin-bottom: 8px; }
+    .live-dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:#157a3e; margin-right:6px; }
+    footer { color: var(--dim); font-size: 12px; border-top: 1px solid var(--line); padding-top: 22px; margin-top: 48px; }
+    @media (max-width: 980px) {
+      .shell { flex-direction: column; }
+      aside.side { width: 100%; height: auto; position: relative; flex-direction: row; flex-wrap: wrap; height: auto; }
+      .wallets { margin-top: 0; flex-direction: row; }
+      main { padding: 28px 20px 56px; }
+      .hero, .detail, .stats, .split, .table, .stats-strip { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
-  <nav>
+  <div class="shell">
+  <aside class="side">
     <div class="brand" onclick="show('board')"><img src="logo.jpg" alt="" /> DualLaunch</div>
     <div class="nav-links">
       <button id="nav-board" class="on" onclick="show('board')">Board</button>
@@ -138,8 +128,7 @@
       <button class="btn btn-ghost" id="btnEvm" type="button">Connect EVM</button>
       <button class="btn btn-ghost" id="btnSolW" type="button">Connect Solana</button>
     </div>
-  </nav>
-
+  </aside>
   <main>
     <section id="view-board" class="view on">
       <p class="kicker">Robinhood Chain · Solana</p>
@@ -161,6 +150,7 @@
         <button onclick="filterBoard(this,'sol')">Solana / pump.fun</button>
         <button onclick="filterBoard(this,'live')">Op de curve</button>
         <button onclick="filterBoard(this,'grad')">Graduated</button>
+        <button onclick="filterBoard(this,'mine')">Mijn launches</button>
         <button id="sort-new" class="on" onclick="setSort(this,'new')">Nieuwste</button>
         <button id="sort-mcap" onclick="setSort(this,'mcap')">Market cap</button>
         <button id="sort-prog" onclick="setSort(this,'prog')">Voortgang</button>
@@ -187,8 +177,13 @@
           </div>
           <label>Beschrijving</label><textarea name="desc" placeholder="Optioneel"></textarea>
           <p class="tick" id="feeLine" style="margin:12px 0">~0.0005 ETH launch fee op PONS</p>
-          <button class="btn btn-lime" type="submit">Open officiële launcher</button>
-          <p class="warn">DualLaunch mint zelf niets. De pad toont de transactie; check chain en bedrag vóór je tekent.</p>
+          <button class="btn btn-lime" type="submit" id="goLaunch">1. Open officiële create-pagina</button>
+          <p class="warn">DualLaunch kan de PONS-factory of pump-programma niet zelf aanroepen (publieke launch zit achter hun UI). Jij vult daar hetzelfde in en tekent.</p>
+          <div id="afterLaunch" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--line)">
+            <p class="tick" style="margin-bottom:8px">2. Na de tx: plak het contract of mint-adres</p>
+            <input id="pinAddr" placeholder="0x… of Solana mint" />
+            <button class="btn btn-ghost" type="button" id="pinBtn" style="width:100%;margin-top:8px">Zet op DualLaunch-board</button>
+          </div>
         </form>
       </div>
     </section>
@@ -205,12 +200,13 @@
     </section>
   </main>
   <footer>DualLaunch · geen financieel advies</footer>
+  </div>
   <div class="toast" id="toast"></div>
 
   <script>
     const GOAL = { rh: 4.2, sol: 85 };
     const UNIT = { rh: "ETH", sol: "SOL" };
-    const PONS_CREATE = "https://www.ponsfamily.com/launchpad";
+    const PONS_CREATE = "https://www.ponsfamily.com/launchpad/create";
     const PUMP_CREATE = "https://pump.fun/create";
     let chain = "rh", filter = "all", sortBy = "new", coins = [];
     const $ = (id) => document.getElementById(id);
@@ -253,7 +249,7 @@
         const y = h - 6 - ((v - min) / span) * (h - 12);
         return (i ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1);
       }).join(" ");
-      const col = (c.liveChg || 0) >= 0 ? "#c8ff3d" : "#ff6b9a";
+      const col = (c.liveChg || 0) >= 0 ? "#157a3e" : "#c0354a";
       return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><path d="${d}" fill="none" stroke="${col}" stroke-width="2"/></svg>`;
     }
     function embedChart(c) {
@@ -290,6 +286,7 @@
         if (filter === "rh" || filter === "sol") { if (c.chain !== filter) return false; }
         if (filter === "live" && graduated(c)) return false;
         if (filter === "grad" && !graduated(c)) return false;
+        if (filter === "mine" && !c.mine) return false;
         if (q) {
           const hay = (c.name + " " + c.symbol + " " + (c.address || "")).toLowerCase();
           if (!hay.includes(q)) return false;
@@ -498,8 +495,39 @@
     $("btnSol").onclick = () => { chain = "sol"; $("btnSol").className = "chain-btn active-sol"; $("btnRh").className = "chain-btn"; $("feeLine").textContent = "Create op pump.fun (SOL)"; };
     $("launchForm").onsubmit = async (e) => {
       e.preventDefault();
-      if (chain === "rh") { await connectEvm(); window.open(PONS_CREATE, "_blank", "noopener"); }
-      else { await connectSol(); window.open(PUMP_CREATE, "_blank", "noopener"); }
+      const f = new FormData($("launchForm"));
+      if (!f.get("name") || !f.get("symbol")) { toast("Vul naam en ticker in."); return; }
+      window._pendingLaunch = { name: f.get("name"), symbol: String(f.get("symbol")).toUpperCase(), desc: f.get("desc") || "", chain };
+      if (chain === "rh") {
+        await connectEvm();
+        window.open(PONS_CREATE, "_blank", "noopener");
+        toast("PONS create geopend. Vul naam/ticker daar in en teken.");
+      } else {
+        await connectSol();
+        window.open(PUMP_CREATE, "_blank", "noopener");
+        toast("pump.fun/create geopend. Maak de munt daar en kopieer de mint.");
+      }
+      $("afterLaunch").style.display = "block";
+    };
+    $("pinBtn").onclick = () => {
+      const addr = ($("pinAddr").value || "").trim();
+      const pending = window._pendingLaunch || { name: "Launch", symbol: "NEW", desc: "", chain };
+      if (!addr || addr.length < 20) { toast("Plak een geldig contract- of mint-adres."); return; }
+      const id = (pending.chain === "rh" ? "rh-" : "sol-") + addr.toLowerCase();
+      const coin = {
+        id, name: pending.name, symbol: pending.symbol, chain: pending.chain,
+        raised: 0.01, goal: GOAL[pending.chain], vol: "—", mcap: 0, created: Date.now(),
+        desc: pending.desc, logo: "", address: addr, graduated: false, mine: true,
+        link: pending.chain === "rh" ? "https://www.ponsfamily.com/launchpad/" + addr : "https://pump.fun/coin/" + addr,
+        chart: pending.chain === "rh" ? "https://dexscreener.com/robinhood/" + addr : "https://dexscreener.com/solana/" + addr
+      };
+      const mine = JSON.parse(localStorage.getItem("dl-mine") || "[]");
+      mine.unshift(coin);
+      localStorage.setItem("dl-mine", JSON.stringify(mine.slice(0, 40)));
+      coins = uniqCoins([coin].concat(coins));
+      toast("Op het board gezet onder Mijn launches.");
+      show("coin", id);
+      renderBoard();
     };
     let feedBusy = false;
     function uniqCoins(list) {
@@ -522,7 +550,8 @@
         const r = await fetch("/api/feed?t=" + Date.now());
         const data = await r.json();
         if (!data.ok) throw new Error(data.error || "feed");
-        const incoming = uniqCoins(data.coins || []);
+        const mine = JSON.parse(localStorage.getItem("dl-mine") || "[]");
+        const incoming = uniqCoins(mine.concat(data.coins || []));
         const known = new Set(coins.map((c) => c.id));
         const fresh = incoming.filter((c) => !known.has(c.id));
         coins = incoming;
