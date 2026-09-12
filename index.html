@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>DualLaunch — PONS & pump.fun</title>
+  <script src="https://plugin.jup.ag/plugin-v1.js" data-preload defer></script>
   <meta name="description" content="Live board for meme coin launches on Robinhood Chain (PONS) and Solana (pump.fun)." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -144,6 +145,7 @@
       <button id="nav-board" class="on" onclick="show('board')">Board</button>
       <button id="nav-launch" onclick="show('launch')">Launch</button>
       <button id="nav-wallet" onclick="show('wallet')">Wallet</button>
+      <button id="nav-swap" onclick="show('swap')">Swap</button>
       <button id="nav-legal" onclick="show('legal')">Disclaimer</button>
     </div>
     <div class="wallets">
@@ -211,6 +213,24 @@
 
     <section id="view-coin" class="view"></section>
 
+    <section id="view-swap" class="view">
+      <p class="kicker">Trade</p>
+      <h1>Swap</h1>
+      <p class="lede">Solana: elke SPL-token via Jupiter (zelfde router als veel wallets). Robinhood Chain heeft geen publieke aggregator — daar swap je de munt op PONS.</p>
+      <div class="toolbar">
+        <button class="on" id="swapSolBtn" type="button">Solana / Jupiter</button>
+        <button id="swapRhBtn" type="button">Robinhood / PONS</button>
+      </div>
+      <div id="jupBox" class="panel" style="max-width:480px;min-height:560px;padding:0;overflow:hidden">
+        <div id="jupiter-plugin"></div>
+      </div>
+      <div id="rhSwap" class="panel" style="max-width:480px;display:none">
+        <p class="tick">Plak een PONS-tokenadres of open een munt op het board en kies Open munt.</p>
+        <input id="rhSwapAddr" placeholder="0x…" />
+        <a class="btn btn-lime" id="rhSwapGo" href="https://www.ponsfamily.com/launchpad" target="_blank" rel="noopener" style="margin-top:12px">Open PONS</a>
+      </div>
+    </section>
+
     <section id="view-wallet" class="view">
       <p class="kicker">Account</p>
       <h1>Wallet</h1>
@@ -256,8 +276,10 @@
       $("nav-launch").classList.toggle("on", name === "launch");
       $("nav-legal").classList.toggle("on", name === "legal");
       if ($("nav-wallet")) $("nav-wallet").classList.toggle("on", name === "wallet");
+      if ($("nav-swap")) $("nav-swap").classList.toggle("on", name === "swap");
       if (name === "coin") renderCoin(id);
       if (name === "wallet") renderWallet();
+      if (name === "swap") initSwap();
       window.scrollTo(0, 0);
     }
     const goalOf = (c) => c.goal || GOAL[c.chain];
@@ -630,6 +652,28 @@
     if ($("goPons")) $("goPons").addEventListener("click", () => { connectEvm(); });
     if ($("goPump")) $("goPump").addEventListener("click", () => { connectSol(); });
 
+    let jupReady = false;
+    function initSwap() {
+      if (!jupReady && window.Jupiter && $("jupiter-plugin")) {
+        try {
+          window.Jupiter.init({ displayMode: "integrated", integratedTargetId: "jupiter-plugin" });
+          jupReady = true;
+        } catch (e) { toast("Jupiter plugin kon niet starten"); }
+      }
+    }
+    if ($("swapSolBtn")) $("swapSolBtn").onclick = () => {
+      $("jupBox").style.display = "block"; $("rhSwap").style.display = "none";
+      $("swapSolBtn").classList.add("on"); $("swapRhBtn").classList.remove("on");
+      initSwap();
+    };
+    if ($("swapRhBtn")) $("swapRhBtn").onclick = () => {
+      $("jupBox").style.display = "none"; $("rhSwap").style.display = "block";
+      $("swapRhBtn").classList.add("on"); $("swapSolBtn").classList.remove("on");
+    };
+    if ($("rhSwapAddr")) $("rhSwapAddr").oninput = () => {
+      const a = ($("rhSwapAddr").value || "").trim();
+      $("rhSwapGo").href = a ? "https://www.ponsfamily.com/launchpad/" + a : "https://www.ponsfamily.com/launchpad";
+    };
     let feedBusy = false;
     function uniqCoins(list) {
       const map = {};
