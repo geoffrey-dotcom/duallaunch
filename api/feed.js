@@ -25,7 +25,7 @@ module.exports = async function handler(req, res) {
     const ipfs = (u) => {
       if (!u) return "";
       const s = String(u);
-      if (s.startsWith("ipfs://")) return "https://cloudflare-ipfs.com/ipfs/" + s.slice(7).replace(/^ipfs\//, "");
+      if (s.startsWith("ipfs://")) return "https://w3s.link/ipfs/" + s.slice(7).replace(/^ipfs\//, "");
       return s;
     };
 
