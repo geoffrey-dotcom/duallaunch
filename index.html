@@ -408,19 +408,19 @@
     function logoUrls(c) {
       const letter = (c.symbol || c.name || "?").slice(0, 2);
       const urls = [];
-      if (c.logo) urls.push(c.logo);
-      if (c.address) urls.push("https://dd.dexscreener.com/ds-data/tokens/" + dsNet(c) + "/" + dsAddr(c) + ".png");
       const s = String(c.logo || "");
       const cid = (s.match(/ipfs\/([^/?#]+)/) || s.match(/^ipfs:\/\/([^/?#]+)/) || [])[1];
       if (cid) {
-        ["https://cloudflare-ipfs.com/ipfs/","https://w3s.link/ipfs/","https://ipfs.io/ipfs/","https://gateway.pinata.cloud/ipfs/"].forEach((g) => urls.push(g + cid));
+        ["https://w3s.link/ipfs/","https://cloudflare-ipfs.com/ipfs/","https://ipfs.io/ipfs/"].forEach((g) => urls.push(g + cid));
+      } else if (s) {
+        urls.push(s);
       }
-      return { letter: esc(letter), urls: urls.filter(Boolean) };
+      return { letter: esc(letter), urls: [...new Set(urls.filter(Boolean))] };
     }
     function av(c) {
       const { letter, urls } = logoUrls(c);
       if (!urls.length) return `<div class="av av-fallback">${letter}</div>`;
-      return `<img class="av" src="${esc(urls[0])}" alt="" data-i="0" data-urls="${esc(urls.join("|"))}" onerror="window.logoFail&&window.logoFail(this,'${letter}')"/>`;
+      return `<img class="av" src="${esc(urls[0])}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-i="0" data-urls="${esc(urls.join("|"))}" onerror="window.logoFail&&window.logoFail(this,'${letter}')"/>`;
     }
     window.logoFail = function(img, letter) {
       const urls = (img.dataset.urls || "").split("|").filter(Boolean);
@@ -435,11 +435,7 @@
       d.textContent = letter;
       img.replaceWith(d);
     };
-    function boardChart(c) {
-      if (!c.address) return sparkSvg(c);
-      const src = "https://dd.dexscreener.com/ds-data/tokens/" + dsNet(c) + "/" + dsAddr(c) + "/header.png";
-      return `<img class="chart-img" src="${esc(src)}" alt="" onerror="this.outerHTML=window._sparkHtml['${esc(c.id)}']"/>`;
-    };
+    function boardChart(c) { return sparkSvg(c); };
     function chgBits(c) {
       const chg = Number(c.liveChg || 0);
       return { cls: chg >= 0 ? "up" : "down", txt: (chg >= 0 ? "+" : "") + chg.toFixed(1) + "%" };
