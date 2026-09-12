@@ -19,9 +19,14 @@ module.exports = async function handler(req, res) {
 
     const ponsRaw = ponsRes.ok ? await ponsRes.json() : [];
     const pumpRaw = pumpRes.ok ? await pumpRes.json() : [];
-
     const ponsList = Array.isArray(ponsRaw) ? ponsRaw : [];
     ponsList.sort((a, b) => new Date(b.launchedAt || 0) - new Date(a.launchedAt || 0));
+
+    const ipfs = (u) => {
+      if (!u) return "";
+      if (String(u).startsWith("ipfs://")) return "https://ipfs.io/ipfs/" + String(u).slice(7);
+      return u;
+    };
 
     const pons = ponsList.slice(0, limit).map((t) => {
       const pct = Number(t.graduationProgressPct || 0);
@@ -30,24 +35,23 @@ module.exports = async function handler(req, res) {
         t.pairedPrincipalEth != null
           ? Number(t.pairedPrincipalEth)
           : (pct / 100) * goal;
+      const addr = t.token || "";
       return {
-        id: "rh-" + String(t.token || "").toLowerCase(),
+        id: "rh-" + String(addr).toLowerCase(),
         name: t.name || "Unnamed",
         symbol: String(t.symbol || "?").toUpperCase(),
         chain: "rh",
         raised,
         goal,
-        chg: 0,
         vol: t.marketCapUsd != null ? "$" + Math.round(t.marketCapUsd).toLocaleString() : "—",
         desc: t.description || "",
-        logo: t.logo || "",
-        address: t.token,
-        pool: t.pool,
+        logo: ipfs(t.logo),
+        address: addr,
+        pool: t.pool || "",
         graduated: !!t.graduated || pct >= 100,
-        link: t.token ? "https://www.ponsfamily.com/launchpad" : "https://www.ponsfamily.com/launchpad",
-        trade: t.token
-          ? "https://dexscreener.com/robinhoodchain/" + t.token
-          : "https://www.ponsfamily.com/launchpad"
+        link: addr ? "https://www.ponsfamily.com/launchpad/" + addr : "https://www.ponsfamily.com/launchpad",
+        trade: addr ? "https://dexscreener.com/robinhood/" + addr : "https://dexscreener.com/robinhood",
+        chart: addr ? "https://dexscreener.com/robinhood/" + addr : ""
       };
     });
 
@@ -55,26 +59,25 @@ module.exports = async function handler(req, res) {
     const pump = pumpList.slice(0, limit).map((t) => {
       const sol = Number(t.real_sol_reserves || 0) / 1e9;
       const goal = 85;
+      const mint = t.mint || "";
       return {
-        id: "sol-" + t.mint,
+        id: "sol-" + mint,
         name: t.name || "Unnamed",
         symbol: String(t.symbol || "?").toUpperCase(),
         chain: "sol",
         raised: t.complete ? goal : sol,
         goal,
-        chg: 0,
         vol: t.usd_market_cap
           ? "$" + Math.round(t.usd_market_cap).toLocaleString()
-          : t.market_cap
-            ? String(Math.round(t.market_cap)) + " SOL MC"
-            : "—",
+          : "—",
         desc: t.description || "",
         logo: t.image_uri || "",
-        address: t.mint,
-        pool: t.bonding_curve,
+        address: mint,
+        pool: t.bonding_curve || "",
         graduated: !!t.complete,
-        link: t.mint ? "https://pump.fun/coin/" + t.mint : "https://pump.fun/",
-        trade: t.mint ? "https://pump.fun/coin/" + t.mint : "https://pump.fun/"
+        link: mint ? "https://pump.fun/coin/" + mint : "https://pump.fun/",
+        trade: mint ? "https://pump.fun/coin/" + mint : "https://pump.fun/",
+        chart: mint ? "https://dexscreener.com/solana/" + mint : ""
       };
     });
 
