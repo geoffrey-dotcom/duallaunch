@@ -99,7 +99,8 @@
     .split { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .chain-btn { background: #f7f8fb; border: 1px solid var(--line); color: var(--dim); padding: 12px; border-radius: 10px; cursor: pointer; font-weight: 700; font-family: inherit; }
     .active-rh, .active-sol { border-color: var(--lime); color: var(--lime); background: #12121a; }
-    .chart-wrap { margin-top:18px; background:transparent; } .chart-frame { width:100%; height:min(480px,58vh); border:0; border-radius:16px; background:#07070c; display:block; }
+    .chart-wrap { margin-top:18px; background:#0a0a12; border:1px solid var(--line); border-radius:16px; padding:8px; }
+    .live-chart { width:100%; height:220px; display:block; }
     .detail { display: grid; grid-template-columns: 1.35fr .75fr; gap: 20px; }
     .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 18px; }
     .stat { background: #0c0c14; border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
@@ -310,6 +311,20 @@
         c.liveChg = first ? ((v - first) / first) * 100 : 0;
         c.spark = arr.map((p) => p.v);
       });
+    }
+    function liveChart(c, w, h) {
+      const pts = (c.spark && c.spark.length > 1) ? c.spark : [Number(c.mcap||1), Number(c.mcap||1)];
+      const min = Math.min.apply(null, pts), max = Math.max.apply(null, pts);
+      const span = max - min || 1;
+      const d = pts.map((v, i) => {
+        const x = (i / Math.max(pts.length - 1, 1)) * w;
+        const y = h - 8 - ((v - min) / span) * (h - 16);
+        return (i ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1);
+      }).join(" ");
+      const up = (c.liveChg || 0) >= 0;
+      const col = up ? "#b8ff3a" : "#ff6b9a";
+      const fill = up ? "rgba(184,255,58,.14)" : "rgba(255,107,154,.14)";
+      return `<svg class="live-chart" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><path d="${d} L${w} ${h} L0 ${h} Z" fill="${fill}"/><path d="${d}" fill="none" stroke="${col}" stroke-width="2.4"/></svg>`;
     }
     function sparkSvg(c) {
       const pts = c.spark && c.spark.length > 1 ? c.spark : [c.mcap || 1, c.mcap || 1];
@@ -524,37 +539,27 @@
               <div class="stat"><b>Doel</b>${goalOf(c)} ${UNIT[c.chain]}</div>
               <div class="stat"><b>Market</b>${esc(c.vol || "—")}</div>
             </div>
-            <div class="chart-wrap">
-            <iframe class="chart-frame" id="dexChart" title="Chart" src="about:blank" loading="lazy" allow="clipboard-write"></iframe></div>
+            <div class="chart-wrap" id="coinChart">${liveChart(c, 640, 220)}</div>
             <div class="bar" style="height:8px;margin-top:16px"><i style="width:${pct(c)}%"></i></div>
             <p class="lede" style="margin-top:14px">${esc((c.desc || "No description.").slice(0, 280))}</p>
             ${socialBtns(c, false)}
             <p class="tick" style="margin-top:10px;word-break:break-all">${esc(c.address || "")}</p>
           </div>
           <div class="panel">
-            <p class="kicker">${g ? "Graduated" : "Op de curve"}</p>
+            <p class="kicker">${g ? "Graduated" : "On the curve"}</p>
             <div class="split" style="margin-top:14px">
               <button class="btn btn-lime" type="button" onclick="window.open('${esc(pad)}','_blank','noopener')">Open coin</button>
-              <button class="btn btn-violet" type="button" onclick="window.open('${esc(chart)}','_blank','noopener')">Chart</button>
+              <button class="btn btn-violet" type="button" onclick="window.open('${esc(pad)}','_blank','noopener')">Official chart</button>
             </div>
             <div class="split" style="margin-top:8px">
-              <button class="btn btn-ghost" type="button" onclick="copyText('${esc(c.address || "")}')">Kopieer contract</button>
+              <button class="btn btn-ghost" type="button" onclick="copyText('${esc(c.address || "")}')">Copy contract</button>
               <button class="btn btn-ghost" type="button" onclick="addToken('${esc(c.id)}')">Add to wallet</button>
             </div>
             <p class="tick" style="margin-top:10px">${c.chain === "rh" ? "Explorer: robinhoodchain.blockscout.com" : "Explorer: solscan.io"}</p>
             <button class="btn btn-ghost" style="width:100%;margin-top:8px" type="button" onclick="window.open('${c.chain === "rh" ? "https://robinhoodchain.blockscout.com/token/" : "https://solscan.io/token/"}' + '${esc(c.address || "")}','_blank','noopener')">Open explorer</button>
-            <p class="warn">${c.chain === "rh" ? "Open coin goes to the PONS page for this contract. Chart is DexScreener." : "Open coin goes to pump.fun/coin/… for this mint."}</p>
+            <p class="warn">${c.chain === "rh" ? "Official chart opens the PONS token page. They block embeds on other sites." : "Official chart opens pump.fun. They block embeds on other sites."}</p>
           </div>
         </div>`;
-      const frame = document.getElementById("dexChart");
-      const hint = document.getElementById("chartHint");
-      const src = embedChart(c);
-      requestAnimationFrame(() => {
-        setTimeout(() => {
-          if (frame) frame.src = src;
-          if (hint) hint.textContent = "";
-        }, 80);
-      });
 
     }
 
