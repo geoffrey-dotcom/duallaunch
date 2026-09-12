@@ -85,7 +85,7 @@
     .tick { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--dim); }
     .mc { font-family: "IBM Plex Mono", monospace; font-weight: 500; }
     .bar { height: 6px; background: #1c1c28; border-radius: 99px; overflow: hidden; }
-    .bar > i { display: block; height: 100%; background: linear-gradient(90deg, var(--lime), var(--violet)); }
+    .bar > i { display: block; height: 100%; background: linear-gradient(90deg, var(--lime), var(--violet)); transition: width .6s ease; }
     .pct { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--dim); margin-top: 6px; }
     .view { display: none; } .view.on { display: block; }
     .hero { display: grid; grid-template-columns: 1fr 400px; gap: 40px; }
@@ -440,34 +440,73 @@
       const src = "https://dd.dexscreener.com/ds-data/tokens/" + dsNet(c) + "/" + dsAddr(c) + "/header.png";
       return `<img class="chart-img" src="${esc(src)}" alt="" onerror="this.outerHTML=window._sparkHtml['${esc(c.id)}']"/>`;
     };
-    function renderBoard() {
-      window._sparkHtml = {};
-
-      const list = visible();
-      if (!list.length) {
-        $("board").innerHTML = `<div style="padding:28px;grid-column:1/-1" class="lede">No coins in this filter, or the feed is still loading.</div>`;
-        return;
-      }
-      $("board").innerHTML = list.map((c) => {
-        const chg = Number(c.liveChg || 0);
-        const chgCls = chg >= 0 ? "up" : "down";
-        const chgTxt = (chg >= 0 ? "+" : "") + chg.toFixed(1) + "%";
-        return `
-        <button class="tile" onclick="show('coin','${esc(c.id)}')">
+    function chgBits(c) {
+      const chg = Number(c.liveChg || 0);
+      return { cls: chg >= 0 ? "up" : "down", txt: (chg >= 0 ? "+" : "") + chg.toFixed(1) + "%" };
+    }
+    function pctLine(c) {
+      return graduated(c) ? "Graduated" : pct(c).toFixed(0) + "% curve · " + Number(c.raised).toFixed(2) + " " + UNIT[c.chain];
+    }
+    function tileHtml(c) {
+      window._sparkHtml = window._sparkHtml || {};
+      window._sparkHtml[c.id] = sparkSvg(c);
+      const ch = chgBits(c);
+      return `<button class="tile" data-id="${esc(c.id)}" onclick="show('coin','${esc(c.id)}')">
           <div class="tile-top">
             <div class="ident">${av(c)}<div>
               <div class="name">${esc(c.name)}</div>
-              <div class="tick">$${esc(c.symbol)} · ${c.chain === "rh" ? "PONS" : "pump.fun"} · ${age(c.created)}</div>
+              <div class="tick js-age">$${esc(c.symbol)} · ${c.chain === "rh" ? "PONS" : "pump.fun"} · ${age(c.created)}</div>
             </div></div>
-            <div class="chg ${chgCls}">${chgTxt}</div>
+            <div class="chg ${ch.cls} js-chg">${ch.txt}</div>
           </div>
-          ${(window._sparkHtml[c.id]=sparkSvg(c), boardChart(c))}
-          <div class="mc">${esc(c.vol || "—")}</div>
-          <div class="bar"><i style="width:${pct(c)}%"></i></div>
-          <div class="pct">${graduated(c) ? "Graduated" : pct(c).toFixed(0) + "% curve · " + Number(c.raised).toFixed(2) + " " + UNIT[c.chain]}</div>
+          <div class="js-chart">${boardChart(c)}</div>
+          <div class="mc js-mc">${esc(c.vol || "—")}</div>
+          <div class="bar"><i class="js-bar" style="width:${pct(c)}%"></i></div>
+          <div class="pct js-pct">${pctLine(c)}</div>
           ${socialBtns(c, true)}
         </button>`;
-      }).join("");
+    }
+    function patchTile(el, c) {
+      const ch = chgBits(c);
+      const g = el.querySelector(".js-chg");
+      if (g) { g.className = "chg " + ch.cls + " js-chg"; g.textContent = ch.txt; }
+      const ageEl = el.querySelector(".js-age");
+      if (ageEl) ageEl.textContent = "$" + c.symbol + " · " + (c.chain === "rh" ? "PONS" : "pump.fun") + " · " + age(c.created);
+      const mc = el.querySelector(".js-mc");
+      if (mc) mc.textContent = c.vol || "—";
+      const bar = el.querySelector(".js-bar");
+      if (bar) bar.style.width = pct(c) + "%";
+      const pl = el.querySelector(".js-pct");
+      if (pl) pl.textContent = pctLine(c);
+    }
+    function renderBoard() {
+      const list = visible();
+      const board = $("board");
+      if (!list.length) {
+        board.innerHTML = `<div style="padding:28px;grid-column:1/-1" class="lede">No coins in this filter, or the feed is still loading.</div>`;
+        return;
+      }
+      const have = {};
+      board.querySelectorAll(".tile[data-id]").forEach((el) => { have[el.dataset.id] = el; });
+      const ids = list.map((c) => c.id).join("|");
+      if (board.dataset.ids === ids && Object.keys(have).length === list.length) {
+        list.forEach((c) => { if (have[c.id]) patchTile(have[c.id], c); });
+        return;
+      }
+      const frag = document.createDocumentFragment();
+      list.forEach((c) => {
+        if (have[c.id]) {
+          patchTile(have[c.id], c);
+          frag.appendChild(have[c.id]);
+        } else {
+          const wrap = document.createElement("div");
+          wrap.innerHTML = tileHtml(c);
+          frag.appendChild(wrap.firstElementChild);
+        }
+      });
+      board.innerHTML = "";
+      board.appendChild(frag);
+      board.dataset.ids = ids;
     }
     function renderCoin(id) {
       const c = coins.find((x) => x.id === id);
