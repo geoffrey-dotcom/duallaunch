@@ -77,7 +77,8 @@
     .ident { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1; }
     .av { width: 52px; height: 52px; border-radius: 14px; object-fit: cover; background: #1a1a26; flex: 0 0 auto; }
     .av-fallback { display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; color:var(--lime); }
-    .spark { width: 100%; height: 54px; display: block; }
+    .spark { width: 100%; height: 72px; display: block; border-radius: 8px; background:#0a0a12; }
+    .chart-img { width:100%; height:88px; object-fit:cover; border-radius:8px; background:#0a0a12; display:block; }
     .chg { font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 600; white-space: nowrap; }
     .chg.up { color: var(--lime); } .chg.down { color: #ff6b9a; }
     .name { font-weight: 750; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -303,8 +304,8 @@
         if (!hist[c.id]) hist[c.id] = [];
         const arr = hist[c.id];
         const last = arr.length ? arr[arr.length - 1] : null;
-        if (!last || last.v !== v) arr.push({ t: Date.now(), v });
-        if (arr.length > 18) arr.shift();
+        if (!last || last.v !== v || Date.now() - last.t > 8000) arr.push({ t: Date.now(), v });
+        if (arr.length > 36) arr.shift();
         const first = arr[0].v;
         c.liveChg = first ? ((v - first) / first) * 100 : 0;
         c.spark = arr.map((p) => p.v);
@@ -315,14 +316,16 @@
       const min = Math.min.apply(null, pts);
       const max = Math.max.apply(null, pts);
       const span = max - min || 1;
-      const w = 240, h = 54;
+      const w = 280, h = 72;
       const d = pts.map((v, i) => {
         const x = (i / Math.max(pts.length - 1, 1)) * w;
         const y = h - 6 - ((v - min) / span) * (h - 12);
         return (i ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1);
       }).join(" ");
       const col = (c.liveChg || 0) >= 0 ? "#b8ff3a" : "#ff6b9a";
-      return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><path d="${d}" fill="none" stroke="${col}" stroke-width="2"/></svg>`;
+      const fill = (c.liveChg || 0) >= 0 ? "rgba(184,255,58,.16)" : "rgba(255,107,154,.16)";
+      const area = d + " L" + w + " " + h + " L0 " + h + " Z";
+      return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><path d="${area}" fill="${fill}"/><path d="${d}" fill="none" stroke="${col}" stroke-width="2"/></svg>`;
     }
     function embedChart(c) {
       const chain = c.chain === "rh" ? "robinhood" : "solana";
@@ -353,7 +356,7 @@
       const s = Math.max(0, Math.floor((Date.now() - Number(ts)) / 1000));
       if (s < 60) return s + "s";
       if (s < 3600) return Math.floor(s / 60) + "m";
-      if (s < 86400) return Math.floor(s / 3600) + "u";
+      if (s < 86400) return Math.floor(s / 3600) + "h";
       return Math.floor(s / 86400) + "d";
     }
     function visible() {
@@ -400,20 +403,31 @@
       if (web) bits.push('<a class="sbtn" '+ev+' href="'+esc(web)+'" target="_blank" rel="noopener">Web</a>');
       return bits.length ? '<div class="slinks">'+bits.join("")+'</div>' : "";
     }
+    function dsNet(c) { return c.chain === "rh" ? "robinhood" : "solana"; }
+    function dsAddr(c) { return c.chain === "rh" ? String(c.address || "").toLowerCase() : String(c.address || ""); }
+    function logoUrls(c) {
+      const letter = (c.symbol || c.name || "?").slice(0, 2);
+      const urls = [];
+      if (c.logo) urls.push(c.logo);
+      if (c.address) urls.push("https://dd.dexscreener.com/ds-data/tokens/" + dsNet(c) + "/" + dsAddr(c) + ".png");
+      const s = String(c.logo || "");
+      const cid = (s.match(/ipfs\/([^/?#]+)/) || s.match(/^ipfs:\/\/([^/?#]+)/) || [])[1];
+      if (cid) {
+        ["https://cloudflare-ipfs.com/ipfs/","https://w3s.link/ipfs/","https://ipfs.io/ipfs/","https://gateway.pinata.cloud/ipfs/"].forEach((g) => urls.push(g + cid));
+      }
+      return { letter: esc(letter), urls: urls.filter(Boolean) };
+    }
     function av(c) {
-      const letter = esc((c.symbol || c.name || "?").slice(0, 2));
-      const src = esc(c.logo || "");
-      if (!src) return `<div class="av av-fallback">${letter}</div>`;
-      return `<img class="av" src="${src}" alt="" onerror="window.logoFail&&window.logoFail(this,'${letter}')"/>`;
+      const { letter, urls } = logoUrls(c);
+      if (!urls.length) return `<div class="av av-fallback">${letter}</div>`;
+      return `<img class="av" src="${esc(urls[0])}" alt="" data-i="0" data-urls="${esc(urls.join("|"))}" onerror="window.logoFail&&window.logoFail(this,'${letter}')"/>`;
     }
     window.logoFail = function(img, letter) {
-      const cur = img.getAttribute("src") || "";
-      const cid = (cur.match(/ipfs\/([^/?#]+)/) || [])[1];
-      const gates = ["https://cloudflare-ipfs.com/ipfs/","https://ipfs.io/ipfs/","https://gateway.pinata.cloud/ipfs/"];
-      const n = Number(img.dataset.g || 0);
-      if (cid && n < gates.length) {
-        img.dataset.g = String(n + 1);
-        img.src = gates[n] + cid;
+      const urls = (img.dataset.urls || "").split("|").filter(Boolean);
+      let i = Number(img.dataset.i || 0) + 1;
+      if (i < urls.length) {
+        img.dataset.i = String(i);
+        img.src = urls[i];
         return;
       }
       const d = document.createElement("div");
@@ -421,7 +435,14 @@
       d.textContent = letter;
       img.replaceWith(d);
     };
+    function boardChart(c) {
+      if (!c.address) return sparkSvg(c);
+      const src = "https://dd.dexscreener.com/ds-data/tokens/" + dsNet(c) + "/" + dsAddr(c) + "/header.png";
+      return `<img class="chart-img" src="${esc(src)}" alt="" onerror="this.outerHTML=window._sparkHtml['${esc(c.id)}']"/>`;
+    };
     function renderBoard() {
+      window._sparkHtml = {};
+
       const list = visible();
       if (!list.length) {
         $("board").innerHTML = `<div style="padding:28px;grid-column:1/-1" class="lede">No coins in this filter, or the feed is still loading.</div>`;
@@ -440,7 +461,7 @@
             </div></div>
             <div class="chg ${chgCls}">${chgTxt}</div>
           </div>
-          ${sparkSvg(c)}
+          ${(window._sparkHtml[c.id]=sparkSvg(c), boardChart(c))}
           <div class="mc">${esc(c.vol || "—")}</div>
           <div class="bar"><i style="width:${pct(c)}%"></i></div>
           <div class="pct">${graduated(c) ? "Graduated" : pct(c).toFixed(0) + "% curve · " + Number(c.raised).toFixed(2) + " " + UNIT[c.chain]}</div>
