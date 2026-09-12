@@ -145,6 +145,9 @@
         <button onclick="filterBoard(this,'sol')">Solana / pump.fun</button>
         <button onclick="filterBoard(this,'live')">Op de curve</button>
         <button onclick="filterBoard(this,'grad')">Graduated</button>
+        <button id="sort-new" class="on" onclick="setSort(this,'new')">Nieuwste</button>
+        <button id="sort-mcap" onclick="setSort(this,'mcap')">Market cap</button>
+        <button id="sort-prog" onclick="setSort(this,'prog')">Voortgang</button>
       </div>
       <div class="table" id="board"></div>
     </section>
@@ -193,7 +196,7 @@
     const UNIT = { rh: "ETH", sol: "SOL" };
     const PONS_CREATE = "https://www.ponsfamily.com/launchpad";
     const PUMP_CREATE = "https://pump.fun/create";
-    let chain = "rh", filter = "all", coins = [];
+    let chain = "rh", filter = "all", sortBy = "new", coins = [];
     const $ = (id) => document.getElementById(id);
     const esc = (s) => String(s || "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
     function toast(msg) { const t = $("toast"); t.textContent = msg; t.style.display = "block"; setTimeout(() => t.style.display = "none", 3800); }
@@ -211,17 +214,39 @@
     const graduated = (c) => !!(c.graduated || c.raised >= goalOf(c));
     function filterBoard(btn, f) {
       filter = f;
-      document.querySelectorAll(".toolbar button").forEach((b) => b.classList.remove("on"));
+      document.querySelectorAll(".toolbar button").forEach((b) => {
+        if (!String(b.id).startsWith("sort-")) b.classList.remove("on");
+      });
       btn.classList.add("on");
       renderBoard();
     }
+    function setSort(btn, s) {
+      sortBy = s;
+      ["sort-new","sort-mcap","sort-prog"].forEach((id) => $(id).classList.remove("on"));
+      btn.classList.add("on");
+      renderBoard();
+    }
+    function age(ts) {
+      if (!ts) return "";
+      const s = Math.max(0, Math.floor((Date.now() - Number(ts)) / 1000));
+      if (s < 60) return s + "s";
+      if (s < 3600) return Math.floor(s / 60) + "m";
+      if (s < 86400) return Math.floor(s / 3600) + "u";
+      return Math.floor(s / 86400) + "d";
+    }
     function visible() {
-      return coins.filter((c) => {
+      const list = coins.filter((c) => {
         if (filter === "rh" || filter === "sol") return c.chain === filter;
         if (filter === "live") return !graduated(c);
         if (filter === "grad") return graduated(c);
         return true;
       });
+      list.sort((a, b) => {
+        if (sortBy === "mcap") return (b.mcap || 0) - (a.mcap || 0);
+        if (sortBy === "prog") return pct(b) - pct(a);
+        return (b.created || 0) - (a.created || 0);
+      });
+      return list;
     }
     function av(c) {
       return c.logo
@@ -236,7 +261,7 @@
       }
       $("board").innerHTML = list.map((c) => `
         <button class="rowc" onclick="show('coin','${esc(c.id)}')">
-          <div class="ident">${av(c)}<div><div class="name">${esc(c.name)}</div><div class="tick">$${esc(c.symbol)} · ${c.chain === "rh" ? "PONS" : "pump.fun"}</div></div></div>
+          <div class="ident">${av(c)}<div><div class="name">${esc(c.name)}</div><div class="tick">$${esc(c.symbol)} · ${c.chain === "rh" ? "PONS" : "pump.fun"} · ${age(c.created)}</div></div></div>
           <div class="mc">${esc(c.vol || "—")}</div>
           <div><div class="bar"><i style="width:${pct(c)}%"></i></div><div class="pct">${graduated(c) ? "Graduated" : pct(c).toFixed(0) + "% · " + Number(c.raised).toFixed(2) + " " + UNIT[c.chain]}</div></div>
           <span class="badge ${graduated(c) ? "g" : ""}">${c.chain === "rh" ? "RH 4663" : "SOL"}</span>
@@ -316,18 +341,24 @@
     async function loadFeed() {
       const status = $("feedStatus");
       try {
-        const r = await fetch("/api/feed");
+        const r = await fetch("/api/feed?t=" + Date.now());
         const data = await r.json();
         if (!data.ok) throw new Error(data.error || "feed");
-        coins = data.coins || [];
-        if (status) status.textContent = coins.length + " live · PONS + pump.fun";
-        renderBoard();
+        const incoming = data.coins || [];
+        const known = new Set(coins.map((c) => c.id));
+        const fresh = incoming.filter((c) => !known.has(c.id));
+        const map = {};
+        coins.concat(incoming).forEach((c) => { map[c.id] = c; });
+        coins = Object.values(map);
+        if (fresh.length && known.size) toast(fresh.length + " nieuwe munt(en) live");
+        if (status) status.textContent = coins.length + " live · ververst " + new Date().toLocaleTimeString("nl-NL");
+        if (document.getElementById("view-board").classList.contains("on")) renderBoard();
       } catch (e) {
-        if (status) status.textContent = "Feed niet geladen — check of api/feed.js op Vercel staat.";
+        if (status) status.textContent = "Feed niet geladen — check api/feed.js op Vercel.";
       }
     }
     loadFeed();
-    setInterval(loadFeed, 25000);
+    setInterval(loadFeed, 8000);
   </script>
 </body>
 </html>
