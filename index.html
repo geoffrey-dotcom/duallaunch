@@ -427,7 +427,7 @@
         coins = incoming;
         trackLive(coins);
         if (fresh.length && known.size) toast(fresh.length + " nieuwe munt(en) live");
-        if (status) status.textContent = coins.length + " live · ververst " + new Date().toLocaleTimeString("nl-NL");
+        if (status) status.innerHTML = '<span class="live-dot"></span>' + coins.length + " live · " + new Date().toLocaleTimeString("nl-NL");
         if (document.getElementById("view-board").classList.contains("on")) renderBoard();
       } catch (e) {
         if (status) status.textContent = "Feed niet geladen — check api/feed.js op Vercel.";
@@ -435,8 +435,15 @@
         feedBusy = false;
       }
     }
+    let liveTimer = null;
+    function startLive() {
+      if (liveTimer) clearInterval(liveTimer);
+      const ms = document.hidden ? 15000 : 2500;
+      liveTimer = setInterval(loadFeed, ms);
+    }
+    document.addEventListener("visibilitychange", startLive);
     loadFeed();
-    setInterval(loadFeed, 6000);
+    startLive();
   </script>
 </body>
 </html>
