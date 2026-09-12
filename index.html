@@ -357,23 +357,38 @@
       if (chain === "rh") { await connectEvm(); window.open(PONS_CREATE, "_blank", "noopener"); }
       else { await connectSol(); window.open(PUMP_CREATE, "_blank", "noopener"); }
     };
+    let feedBusy = false;
+    function uniqCoins(list) {
+      const map = {};
+      (list || []).forEach((c) => {
+        const addr = String(c.address || c.id || "").trim().toLowerCase();
+        if (!addr) return;
+        const id = (c.chain === "rh" ? "rh-" : "sol-") + addr;
+        c.id = id;
+        c.address = c.address || addr;
+        map[id] = c;
+      });
+      return Object.values(map);
+    }
     async function loadFeed() {
+      if (feedBusy) return;
+      feedBusy = true;
       const status = $("feedStatus");
       try {
         const r = await fetch("/api/feed?t=" + Date.now());
         const data = await r.json();
         if (!data.ok) throw new Error(data.error || "feed");
-        const incoming = data.coins || [];
+        const incoming = uniqCoins(data.coins || []);
         const known = new Set(coins.map((c) => c.id));
         const fresh = incoming.filter((c) => !known.has(c.id));
-        const map = {};
-        coins.concat(incoming).forEach((c) => { map[c.id] = c; });
-        coins = Object.values(map);
+        coins = incoming;
         if (fresh.length && known.size) toast(fresh.length + " nieuwe munt(en) live");
         if (status) status.textContent = coins.length + " live · ververst " + new Date().toLocaleTimeString("nl-NL");
         if (document.getElementById("view-board").classList.contains("on")) renderBoard();
       } catch (e) {
         if (status) status.textContent = "Feed niet geladen — check api/feed.js op Vercel.";
+      } finally {
+        feedBusy = false;
       }
     }
     loadFeed();
