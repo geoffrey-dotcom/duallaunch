@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DualLaunch — Board, charts & graduation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #07070b; --card: rgba(16,17,28,.82); --line: rgba(255,255,255,.08);
+      --text: #f4f5fb; --muted: #9aa0b8; --green: #7cff6b; --purple: #8b6bff; --warn: #ffb020;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { background: var(--bg); color: var(--text); font-family: "Instrument Sans", system-ui, sans-serif; }
+    body { min-height: 100vh; }
+    .glow, .glow-2 { position: fixed; border-radius: 50%; pointer-events: none; }
+    .glow { inset: -20% auto auto -10%; width: 55vw; height: 55vw; background: radial-gradient(circle, rgba(124,255,107,.12), transparent 60%); }
+    .glow-2 { inset: auto -15% -20% auto; width: 50vw; height: 50vw; background: radial-gradient(circle, rgba(139,107,255,.16), transparent 60%); }
+    nav {
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      padding: 16px 24px; border-bottom: 1px solid var(--line); position: sticky; top: 0;
+      backdrop-filter: blur(16px); background: rgba(7,7,11,.78); z-index: 20;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; cursor: pointer; }
+    .brand img { width: 36px; height: 36px; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); }
+    .nav-links { display: flex; gap: 8px; flex-wrap: wrap; }
+    .nav-links button, .btn {
+      border: 0; cursor: pointer; border-radius: 999px; padding: 9px 14px; font-weight: 600; font-family: inherit;
+    }
+    .nav-links button { background: transparent; color: var(--muted); }
+    .nav-links button.on { color: var(--text); background: #141625; }
+    .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
+    .btn-dual { background: linear-gradient(135deg, var(--green), #c8ff7a 40%, var(--purple)); color: #0b0b10; }
+    .btn-buy { background: var(--green); color: #08110a; width: 100%; padding: 12px; }
+    .btn-sell { background: #2a1420; color: #ff8eb0; border: 1px solid #5a2438; width: 100%; padding: 12px; }
+    main { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 28px 0 72px; }
+    h1 { font-size: clamp(28px, 5vw, 48px); letter-spacing: -.04em; line-height: 1; }
+    h1 span { background: linear-gradient(90deg, var(--green), #fff, var(--purple)); -webkit-background-clip: text; color: transparent; }
+    .muted { color: var(--muted); }
+    .chip { font-family: "IBM Plex Mono", monospace; font-size: 11px; border: 1px solid var(--line); padding: 5px 9px; border-radius: 999px; color: var(--muted); }
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin: 18px 0 16px; }
+    .toolbar button { background: #11131d; border: 1px solid var(--line); color: var(--muted); padding: 8px 12px; border-radius: 999px; cursor: pointer; font-family: inherit; }
+    .toolbar button.on { color: var(--text); border-color: rgba(124,255,107,.4); }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .coin {
+      background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 14px; cursor: pointer;
+      text-align: left; color: inherit; width: 100%; font-family: inherit;
+    }
+    .coin:hover { border-color: rgba(255,255,255,.16); }
+    .coin-top { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+    .name { font-weight: 700; }
+    .tick { color: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: 12px; }
+    .mc { font-family: "IBM Plex Mono", monospace; font-size: 13px; }
+    .bar { height: 7px; background: #161824; border-radius: 99px; overflow: hidden; margin: 10px 0 6px; }
+    .bar > i { display: block; height: 100%; background: linear-gradient(90deg, var(--green), var(--purple)); }
+    .meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+    .up { color: var(--green); } .down { color: #ff6b9a; }
+    .view { display: none; } .view.on { display: block; }
+    .hero { display: grid; grid-template-columns: 1.1fr .9fr; gap: 28px; align-items: start; margin-bottom: 28px; }
+    .hero-card, .panel { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 16px; }
+    label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 6px; }
+    input, textarea, select {
+      width: 100%; background: #0b0c14; border: 1px solid var(--line); color: var(--text);
+      border-radius: 12px; padding: 11px; font: inherit;
+    }
+    textarea { min-height: 68px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .chain-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .chain-btn { background: #11131d; border: 1px solid var(--line); color: var(--muted); padding: 11px; border-radius: 14px; cursor: pointer; font-weight: 600; }
+    .active-rh { border-color: rgba(124,255,107,.5); color: var(--green); }
+    .active-sol { border-color: rgba(139,107,255,.55); color: #c3b4ff; }
+    .detail { display: grid; grid-template-columns: 1.4fr .75fr; gap: 14px; }
+    .chart {
+      height: 280px; background: linear-gradient(#0c0d16, #10121c); border-radius: 16px; border: 1px solid var(--line);
+      position: relative; overflow: hidden;
+    }
+    .chart svg { width: 100%; height: 100%; display: block; }
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
+    .stat { background: #10121c; border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
+    .stat b { display: block; font-size: 12px; color: var(--muted); font-weight: 500; }
+    .trades { margin-top: 12px; font-size: 13px; }
+    .trades div { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--line); }
+    .warn { margin-top: 10px; font-size: 12px; color: #d7c39a; background: rgba(255,176,32,.08); border: 1px solid rgba(255,176,32,.2); padding: 10px; border-radius: 12px; }
+    .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: #141625; border: 1px solid var(--line); padding: 12px 16px; border-radius: 14px; display: none; z-index: 40; max-width: min(520px, calc(100% - 24px)); }
+    @media (max-width: 900px) {
+      .grid, .hero, .detail, .stats, .row, .chain-toggle { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="glow"></div><div class="glow-2"></div>
+  <nav>
+    <div class="brand" onclick="show('board')">
+      <img src="logo.jpg" alt="" /> DualLaunch
+    </div>
+    <div class="nav-links">
+      <button id="nav-board" class="on" onclick="show('board')">Board</button>
+      <button id="nav-launch" onclick="show('launch')">Launch</button>
+    </div>
+    <button class="btn btn-ghost" type="button" onclick="toast('Wallet-connect komt in de Next.js-versie (wagmi + Phantom).')">Connect</button>
+  </nav>
+
+  <main>
+    <section id="view-board" class="view on">
+      <div class="chip">Demo-data · later live uit PONS / pump.fun events</div>
+      <h1 style="margin-top:12px">Volg de curve op <span>jouw</span> site.</h1>
+      <p class="muted" style="margin-top:10px;max-width:640px">Elke coin heeft een pagina met chart, trades en graduation-voortgang. In productie vullen we dit met on-chain reserves — nu is het een werkend productmodel.</p>
+      <div class="toolbar">
+        <button class="on" data-f="all" onclick="filterBoard(this,'all')">Alles</button>
+        <button data-f="rh" onclick="filterBoard(this,'rh')">Robinhood Chain</button>
+        <button data-f="sol" onclick="filterBoard(this,'sol')">Solana</button>
+        <button data-f="live" onclick="filterBoard(this,'live')">Op de curve</button>
+        <button data-f="grad" onclick="filterBoard(this,'grad')">Graduated</button>
+      </div>
+      <div class="grid" id="board"></div>
+    </section>
+
+    <section id="view-launch" class="view">
+      <div class="hero">
+        <div>
+          <div class="chip">Na launch landt de coin op het board</div>
+          <h1 style="margin-top:12px">Launch op RH Chain of Solana.</h1>
+          <p class="muted" style="margin-top:12px">Demo slaat de munt lokaal op zodat je meteen de voortgangspagina ziet. Live zou hier de PONS-factory of pump.fun-programma getekend worden.</p>
+        </div>
+        <form class="hero-card" id="launchForm">
+          <div class="chain-toggle">
+            <button type="button" class="chain-btn active-rh" id="btnRh">Robinhood Chain</button>
+            <button type="button" class="chain-btn" id="btnSol">Solana</button>
+          </div>
+          <label>Naam</label><input name="name" required placeholder="Cash Frog" maxlength="32" />
+          <div class="row">
+            <div><label>Ticker</label><input name="symbol" required placeholder="FROG" maxlength="10" /></div>
+            <div>
+              <label>Supply</label>
+              <select name="supply"><option>1.000.000.000</option></select>
+            </div>
+          </div>
+          <label>Beschrijving</label>
+          <textarea name="desc" placeholder="Frog die hood en sol verbindt."></textarea>
+          <p class="muted" style="font-size:12px;margin:12px 0" id="feeLine">Fee ~0.0005 ETH · pair WETH · goal 4.2 ETH</p>
+          <button class="btn btn-dual" type="submit" style="width:100%;padding:13px">Launch & open voortgang</button>
+          <p class="warn">Nog geen echte on-chain tx. De coin verschijnt wel op het board zodat je de UX kunt testen.</p>
+        </form>
+      </div>
+    </section>
+
+    <section id="view-coin" class="view"></section>
+  </main>
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const GOAL = { rh: 4.2, sol: 85 };
+    const UNIT = { rh: "ETH", sol: "SOL" };
+    let chain = "rh";
+    let filter = "all";
+    let coins = [
+      { id: "cashcat", name: "Cash Cat", symbol: "CASHCAT", chain: "rh", raised: 3.41, chg: 18.2, vol: "1.2M", desc: "Demo-munt in PONS-stijl. Graduation bij 4.2 ETH." },
+      { id: "hoodfrog", name: "Hood Frog", symbol: "FROG", chain: "rh", raised: 1.08, chg: -6.4, vol: "220k", desc: "Vroeg op de curve." },
+      { id: "soltrench", name: "Trench Dog", symbol: "TDOG", chain: "sol", raised: 62, chg: 41.0, vol: "890k", desc: "pump.fun-achtige SOL-curve tot 85 SOL." },
+      { id: "gradone", name: "Listed Pepe", symbol: "LPEPE", chain: "sol", raised: 85, chg: 4.1, vol: "3.1M", desc: "Al graduated — trading gaat door op de AMM." }
+    ];
+
+    const $ = (id) => document.getElementById(id);
+    function toast(msg) { const t = $("toast"); t.textContent = msg; t.style.display = "block"; setTimeout(() => t.style.display = "none", 3800); }
+    function show(name, id) {
+      document.querySelectorAll(".view").forEach(v => v.classList.remove("on"));
+      $("view-" + name).classList.add("on");
+      $("nav-board").classList.toggle("on", name === "board");
+      $("nav-launch").classList.toggle("on", name === "launch");
+      if (name === "coin") renderCoin(id);
+      window.scrollTo(0, 0);
+    }
+    function pct(c) { return Math.min(100, (c.raised / GOAL[c.chain]) * 100); }
+    function graduated(c) { return c.raised >= GOAL[c.chain]; }
+    function spark(c) {
+      const p = pct(c);
+      const pts = [8,18,14,28,22,40,36,48,44,55].map((y,i) => `${20+i*32},${110 - y * (0.4 + p/200)}`).join(" ");
+      return `<svg viewBox="0 0 340 120" preserveAspectRatio="none"><polyline fill="none" stroke="${c.chg>=0?'#7cff6b':'#ff6b9a'}" stroke-width="3" points="${pts}" /></svg>`;
+    }
+
+    function filterBoard(btn, f) {
+      filter = f;
+      document.querySelectorAll(".toolbar button").forEach(b => b.classList.remove("on"));
+      btn.classList.add("on");
+      renderBoard();
+    }
+    function visible() {
+      return coins.filter(c => {
+        if (filter === "rh" || filter === "sol") return c.chain === filter;
+        if (filter === "live") return !graduated(c);
+        if (filter === "grad") return graduated(c);
+        return true;
+      });
+    }
+    function renderBoard() {
+      $("board").innerHTML = visible().map(c => `
+        <button class="coin" onclick="show('coin','${c.id}')">
+          <div class="coin-top">
+            <div>
+              <div class="name">${c.name}</div>
+              <div class="tick">$${c.symbol} · ${c.chain === "rh" ? "RH 4663" : "Solana"}</div>
+            </div>
+            <div class="mc ${c.chg>=0?'up':'down'}">${c.chg>=0?'+':''}${c.chg.toFixed(1)}%</div>
+          </div>
+          <div class="bar"><i style="width:${pct(c)}%"></i></div>
+          <div class="meta">
+            <span>${graduated(c) ? "Graduated" : pct(c).toFixed(0) + "% naar graduation"}</span>
+            <span>${c.raised.toFixed(2)} / ${GOAL[c.chain]} ${UNIT[c.chain]}</span>
+          </div>
+        </button>
+      `).join("") || `<p class="muted">Geen munten in deze filter.</p>`;
+    }
+
+    function renderCoin(id) {
+      const c = coins.find(x => x.id === id);
+      if (!c) return;
+      const g = graduated(c);
+      $("view-coin").innerHTML = `
+        <button class="btn btn-ghost" onclick="show('board')" style="margin-bottom:14px">← Board</button>
+        <div class="detail">
+          <div class="panel">
+            <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">
+              <div>
+                <h1>${c.name}</h1>
+                <p class="tick" style="margin-top:6px">$${c.symbol} · ${c.chain === "rh" ? "Robinhood Chain" : "Solana"} · demo</p>
+              </div>
+              <span class="chip">${g ? "Graduated · AMM" : "Bonding curve"}</span>
+            </div>
+            <div class="chart">${spark(c)}</div>
+            <div class="stats">
+              <div class="stat"><b>Voortgang</b>${pct(c).toFixed(1)}%</div>
+              <div class="stat"><b>Raised</b>${c.raised.toFixed(2)} ${UNIT[c.chain]}</div>
+              <div class="stat"><b>Doel</b>${GOAL[c.chain]} ${UNIT[c.chain]}</div>
+              <div class="stat"><b>24h vol</b>${c.vol}</div>
+            </div>
+            <div class="bar" style="height:10px;margin-top:14px"><i style="width:${pct(c)}%"></i></div>
+            <p class="muted" style="font-size:12px;margin-top:8px">${c.desc} Live wordt dit ${c.chain === "rh" ? "WETH in de PONS/Uniswap-pool" : "SOL in de pump-curve"}.</p>
+            <div class="trades">
+              <div><span class="up">Buy 0.04 ${UNIT[c.chain]}</span><span>2m</span></div>
+              <div><span class="down">Sell 0.01 ${UNIT[c.chain]}</span><span>6m</span></div>
+              <div><span class="up">Buy 0.12 ${UNIT[c.chain]}</span><span>11m</span></div>
+            </div>
+          </div>
+          <div class="panel">
+            <label>Bedrag (${UNIT[c.chain]})</label>
+            <input value="${c.chain === "rh" ? "0.05" : "0.5"}" />
+            <div class="row" style="margin-top:10px">
+              <button class="btn btn-buy" type="button" onclick="simTrade('${c.id}',1)">Buy</button>
+              <button class="btn btn-sell" type="button" onclick="simTrade('${c.id}',-1)">Sell</button>
+            </div>
+            <p class="warn">Demo-knoppen bewegen alleen de lokale voortgangsbalk. Later: echte swap via PONS-router of pump.fun.</p>
+            <p class="muted" style="font-size:12px;margin-top:12px">Dexscreener-embed komt op deze plek zodra er een echt pair-adres is.</p>
+          </div>
+        </div>`;
+    }
+
+    function simTrade(id, dir) {
+      const c = coins.find(x => x.id === id);
+      const step = c.chain === "rh" ? 0.08 : 2.2;
+      c.raised = Math.max(0.05, Math.min(GOAL[c.chain] * 1.05, c.raised + dir * step));
+      c.chg += dir * 2.3;
+      renderCoin(id);
+      toast(dir > 0 ? "Demo-buy: curve omhoog." : "Demo-sell: curve omlaag.");
+    }
+
+    $("btnRh").onclick = () => { chain = "rh"; $("btnRh").className = "chain-btn active-rh"; $("btnSol").className = "chain-btn"; $("feeLine").textContent = "Fee ~0.0005 ETH · pair WETH · goal 4.2 ETH"; };
+    $("btnSol").onclick = () => { chain = "sol"; $("btnSol").className = "chain-btn active-sol"; $("btnRh").className = "chain-btn"; $("feeLine").textContent = "Fee ~0.02 SOL · pair SOL · goal 85 SOL"; };
+
+    $("launchForm").onsubmit = (e) => {
+      e.preventDefault();
+      const f = new FormData(e.target);
+      const id = "u-" + Date.now();
+      coins.unshift({
+        id, name: f.get("name"), symbol: String(f.get("symbol")).toUpperCase(),
+        chain, raised: chain === "rh" ? 0.12 : 3.4, chg: 12, vol: "—",
+        desc: f.get("desc") || "Gelanceerd via DualLaunch (demo)."
+      });
+      renderBoard();
+      show("coin", id);
+      toast("Munt staat op het board. Voortgang is demo tot we on-chain lezen.");
+    };
+
+    renderBoard();
+    setInterval(() => {
+      coins.forEach(c => {
+        if (graduated(c)) return;
+        if (Math.random() > 0.55) {
+          c.raised = Math.min(GOAL[c.chain], c.raised + (c.chain === "rh" ? 0.02 : 0.4) * Math.random());
+          c.chg += (Math.random() - 0.4) * 1.2;
+        }
+      });
+      if ($("view-board").classList.contains("on")) renderBoard();
+    }, 2500);
+  </script>
+</body>
+</html>
