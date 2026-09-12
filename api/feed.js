@@ -1,31 +1,33 @@
 module.exports = async function handler(req, res) {
   res.setHeader("Cache-Control", "s-maxage=4, stale-while-revalidate=12");
   res.setHeader("Access-Control-Allow-Origin", "*");
-  const limit = Math.min(Number(req.query.limit) || 30, 50);
   const hdr = { accept: "application/json" };
 
   try {
-    const pumpQs = (sort) =>
-      "https://frontend-api-v3.pump.fun/coins?offset=0&limit=" +
-      limit +
-      "&sort=" +
-      sort +
-      "&order=DESC&includeNsfw=false";
+    const pumpQs = (sort, offset) =>
+      "https://frontend-api-v3.pump.fun/coins?offset=" + offset +
+      "&limit=50&sort=" + sort + "&order=DESC&includeNsfw=false";
 
     const ponsExplore = (sort, page) =>
       "https://www.ponsfamily.com/api/pons-launches?explore=1&sort=" +
-      sort +
-      "&age=all&page=" +
-      page +
-      "&includeGraduated=true";
+      sort + "&age=all&page=" + page + "&includeGraduated=true";
 
-    const [ponsNewRes, ponsBuyRes, ponsP2Res, pumpNewRes, pumpHotRes] = await Promise.all([
+    const jobs = [
       fetch(ponsExplore("newest", 1), { headers: hdr }),
-      fetch(ponsExplore("recentBuys", 1), { headers: hdr }),
       fetch(ponsExplore("newest", 2), { headers: hdr }),
-      fetch(pumpQs("created_timestamp"), { headers: hdr }),
-      fetch(pumpQs("last_trade_timestamp") + "&complete=false", { headers: hdr })
-    ]);
+      fetch(ponsExplore("newest", 3), { headers: hdr }),
+      fetch(ponsExplore("recentBuys", 1), { headers: hdr }),
+      fetch(ponsExplore("recentBuys", 2), { headers: hdr }),
+      fetch(ponsExplore("marketCap", 1), { headers: hdr }),
+      fetch(pumpQs("created_timestamp", 0), { headers: hdr }),
+      fetch(pumpQs("created_timestamp", 50), { headers: hdr }),
+      fetch(pumpQs("created_timestamp", 100), { headers: hdr }),
+      fetch(pumpQs("last_trade_timestamp", 0) + "&complete=false", { headers: hdr }),
+      fetch(pumpQs("last_trade_timestamp", 50) + "&complete=false", { headers: hdr }),
+      fetch(pumpQs("market_cap", 0) + "&complete=false", { headers: hdr })
+    ];
+    const settled = await Promise.all(jobs.map((p) => p.catch(() => null)));
+    const [p1,p2,p3,pb1,pb2,pmc, pn0,pn50,pn100, ph0,ph50, pmc2] = settled;
 
     const flattenPons = (raw) => {
       if (!raw) return [];
@@ -35,13 +37,22 @@ module.exports = async function handler(req, res) {
       return a.concat(g);
     };
 
+    const read = async (r) => (r && r.ok ? r.json() : null);
     const ponsList = []
-      .concat(flattenPons(ponsNewRes.ok ? await ponsNewRes.json() : null))
-      .concat(flattenPons(ponsBuyRes.ok ? await ponsBuyRes.json() : null))
-      .concat(flattenPons(ponsP2Res.ok ? await ponsP2Res.json() : null));
+      .concat(flattenPons(await read(p1)))
+      .concat(flattenPons(await read(p2)))
+      .concat(flattenPons(await read(p3)))
+      .concat(flattenPons(await read(pb1)))
+      .concat(flattenPons(await read(pb2)))
+      .concat(flattenPons(await read(pmc)));
 
-    const pumpNew = pumpNewRes.ok ? await pumpNewRes.json() : [];
-    const pumpHot = pumpHotRes.ok ? await pumpHotRes.json() : [];
+    const pumpRaw = []
+      .concat(await read(pn0) || [])
+      .concat(await read(pn50) || [])
+      .concat(await read(pn100) || [])
+      .concat(await read(ph0) || [])
+      .concat(await read(ph50) || [])
+      .concat(await read(pmc2) || []);
 
     const ipfs = (u) => {
       if (!u) return "";
@@ -131,9 +142,7 @@ module.exports = async function handler(req, res) {
 
     const seenS = new Set();
     const pump = [];
-    (Array.isArray(pumpHot) ? pumpHot : [])
-      .concat(Array.isArray(pumpNew) ? pumpNew : [])
-      .forEach((t) => {
+    (Array.isArray(pumpRaw) ? pumpRaw : []).forEach((t) => {
         const c = mapPump(t);
         if (!c.address || seenS.has(c.id)) return;
         seenS.add(c.id);
