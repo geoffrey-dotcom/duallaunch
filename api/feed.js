@@ -16,7 +16,13 @@ module.exports = async function handler(req, res) {
     const ponsList = Array.isArray(ponsRaw) ? ponsRaw : [];
     ponsList.sort((a, b) => new Date(b.launchedAt || 0) - new Date(a.launchedAt || 0));
 
-    const ipfs = (u) => (!u ? "" : String(u).startsWith("ipfs://") ? "https://ipfs.io/ipfs/" + String(u).slice(7) : u);
+    const ipfs = (u) => {
+      if (!u) return "";
+      const s = String(u);
+      if (s.startsWith("ipfs://")) return "https://cloudflare-ipfs.com/ipfs/" + s.slice(7).replace(/^ipfs\//, "");
+      if (s.includes("/ipfs/")) return s;
+      return s;
+    };
 
     const pons = ponsList.slice(0, limit).map((t) => {
       const pct = Number(t.graduationProgressPct || 0);
