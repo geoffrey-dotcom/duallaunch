@@ -1,5 +1,5 @@
 module.exports = async function handler(req, res) {
-  res.setHeader("Cache-Control", "s-maxage=15, stale-while-revalidate=45");
+  res.setHeader("Cache-Control", "s-maxage=4, stale-while-revalidate=12");
   res.setHeader("Access-Control-Allow-Origin", "*");
   const limit = Math.min(Number(req.query.limit) || 30, 50);
 
