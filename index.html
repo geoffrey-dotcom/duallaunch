@@ -96,8 +96,9 @@
       <img src="logo.jpg" alt="" /> DualLaunch
     </div>
     <div class="nav-links">
-      <button id="nav-board" class="on" onclick="show('board')">Board</button>
+      <button id="nav-board" class="on" onclick="show('board')">Home</button>
       <button id="nav-launch" onclick="show('launch')">Launch</button>
+      <button id="nav-legal" onclick="show('legal')">Disclaimer</button>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <button class="btn btn-ghost" type="button" id="btnEvm">Connect EVM</button>
@@ -107,9 +108,9 @@
 
   <main>
     <section id="view-board" class="view on">
-      <div class="chip">Demo-data · later live uit PONS / pump.fun events</div>
-      <h1 style="margin-top:12px">Volg de curve op <span>jouw</span> site.</h1>
-      <p class="muted" style="margin-top:10px;max-width:640px">Elke coin heeft een pagina met chart, trades en graduation-voortgang. In productie vullen we dit met on-chain reserves — nu is het een werkend productmodel.</p>
+      <div class="chip">Robinhood Chain · Solana · via PONS & pump.fun</div>
+      <h1 style="margin-top:12px">Launch meme coins. <span>Volg ze hier.</span></h1>
+      <p class="muted" style="margin-top:10px;max-width:640px">DualLaunch is de voordeur. Een echte token maak je in je eigen wallet op PONS (Robinhood Chain) of pump.fun (Solana). Dit board toont alleen munten die jij hier toevoegt — geen verzonnen voorbeeldcoins.</p>
       <div class="toolbar">
         <button class="on" data-f="all" onclick="filterBoard(this,'all')">Alles</button>
         <button data-f="rh" onclick="filterBoard(this,'rh')">Robinhood Chain</button>
@@ -123,9 +124,9 @@
     <section id="view-launch" class="view">
       <div class="hero">
         <div>
-          <div class="chip">Na launch landt de coin op het board</div>
-          <h1 style="margin-top:12px">Launch op RH Chain of Solana.</h1>
-          <p class="muted" style="margin-top:12px">Demo slaat de munt lokaal op zodat je meteen de voortgangspagina ziet. Live zou hier de PONS-factory of pump.fun-programma getekend worden.</p>
+          <div class="chip">Teken in je eigen wallet</div>
+          <h1 style="margin-top:12px">Kies de chain, open de officiële pad.</h1>
+          <p class="muted" style="margin-top:12px">Robinhood Chain gaat naar PONS. Solana gaat naar pump.fun/create. DualLaunch bewaart geen keys en stuurt geen transactie voor je.</p>
         </div>
         <form class="hero-card" id="launchForm">
           <div class="chain-toggle">
@@ -151,7 +152,21 @@
     </section>
 
     <section id="view-coin" class="view"></section>
+
+    <section id="view-legal" class="view">
+      <div class="chip">Lees dit vóór je iets launcht</div>
+      <h1 style="margin-top:12px">Disclaimer</h1>
+      <div class="panel" style="margin-top:16px;max-width:720px">
+        <p class="muted" style="line-height:1.6">DualLaunch is een onafhankelijke interface. We zijn niet verbonden met Robinhood, PONS of pump.fun.</p>
+        <p class="muted" style="line-height:1.6;margin-top:12px">Meme coins zijn extreem risicovol. Je kunt je inleg volledig verliezen. Dit is geen financieel advies en geen aanbod van effecten.</p>
+        <p class="muted" style="line-height:1.6;margin-top:12px">Een launch op PONS of pump.fun is onomkeerbaar. Controleer naam, ticker, netwerk (4663 of Solana) en het bedrag in je wallet vóór je tekent.</p>
+        <p class="muted" style="line-height:1.6;margin-top:12px">DualLaunch host geen tokens, bewaart geen private keys en kan een rug, bug of verlies niet voorkomen. Wetgeving (o.a. MiCA in de EU) kan op jouw situatie van toepassing zijn.</p>
+      </div>
+    </section>
   </main>
+  <footer class="muted" style="width:min(1180px,calc(100% - 32px));margin:0 auto 32px;font-size:12px;border-top:1px solid var(--line);padding-top:16px">
+    DualLaunch · geen financieel advies · <a href="#" onclick="show('legal');return false;" style="color:var(--muted)">Disclaimer</a>
+  </footer>
   <div class="toast" id="toast"></div>
 
   <script>
@@ -159,12 +174,7 @@
     const UNIT = { rh: "ETH", sol: "SOL" };
     let chain = "rh";
     let filter = "all";
-    let coins = [
-      { id: "cashcat", name: "Cash Cat", symbol: "CASHCAT", chain: "rh", raised: 3.41, chg: 18.2, vol: "1.2M", desc: "Demo-munt in PONS-stijl. Graduation bij 4.2 ETH." },
-      { id: "hoodfrog", name: "Hood Frog", symbol: "FROG", chain: "rh", raised: 1.08, chg: -6.4, vol: "220k", desc: "Vroeg op de curve." },
-      { id: "soltrench", name: "Trench Dog", symbol: "TDOG", chain: "sol", raised: 62, chg: 41.0, vol: "890k", desc: "pump.fun-achtige SOL-curve tot 85 SOL." },
-      { id: "gradone", name: "Listed Pepe", symbol: "LPEPE", chain: "sol", raised: 85, chg: 4.1, vol: "3.1M", desc: "Al graduated — trading gaat door op de AMM." }
-    ];
+    let coins = JSON.parse(localStorage.getItem("dl-coins") || "[]");
 
     const $ = (id) => document.getElementById(id);
     function toast(msg) { const t = $("toast"); t.textContent = msg; t.style.display = "block"; setTimeout(() => t.style.display = "none", 3800); }
@@ -173,6 +183,7 @@
       $("view-" + name).classList.add("on");
       $("nav-board").classList.toggle("on", name === "board");
       $("nav-launch").classList.toggle("on", name === "launch");
+      $("nav-legal").classList.toggle("on", name === "legal");
       if (name === "coin") renderCoin(id);
       window.scrollTo(0, 0);
     }
@@ -199,6 +210,14 @@
       });
     }
     function renderBoard() {
+      if (!visible().length) {
+        $("board").innerHTML = `<div class="panel" style="grid-column:1/-1">
+          <h3 style="margin-bottom:8px">Nog geen munten op dit board</h3>
+          <p class="muted">Launch via PONS of pump.fun, of zet een lokale notitie op het board (geen on-chain munt).</p>
+          <button class="btn btn-dual" style="margin-top:12px" type="button" onclick="show('launch')">Naar Launch</button>
+        </div>`;
+        return;
+      }
       $("board").innerHTML = visible().map(c => `
         <button class="coin" onclick="show('coin','${c.id}')">
           <div class="coin-top">
@@ -343,21 +362,12 @@
         chain, raised: chain === "rh" ? 0.12 : 3.4, chg: 12, vol: "—",
         desc: f.get("desc") || "Demo op DualLaunch-board."
       });
+      localStorage.setItem("dl-coins", JSON.stringify(coins));
       renderBoard();
       show("coin", id);
     };
 
     renderBoard();
-    setInterval(() => {
-      coins.forEach(c => {
-        if (graduated(c)) return;
-        if (Math.random() > 0.55) {
-          c.raised = Math.min(GOAL[c.chain], c.raised + (c.chain === "rh" ? 0.02 : 0.4) * Math.random());
-          c.chg += (Math.random() - 0.4) * 1.2;
-        }
-      });
-      if ($("view-board").classList.contains("on")) renderBoard();
-    }, 2500);
   </script>
 </body>
 </html>
