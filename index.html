@@ -110,7 +110,8 @@
     <section id="view-board" class="view on">
       <div class="chip">Robinhood Chain · Solana · via PONS & pump.fun</div>
       <h1 style="margin-top:12px">Launch meme coins. <span>Volg ze hier.</span></h1>
-      <p class="muted" style="margin-top:10px;max-width:640px">DualLaunch is de voordeur. Een echte token maak je in je eigen wallet op PONS (Robinhood Chain) of pump.fun (Solana). Dit board toont alleen munten die jij hier toevoegt — geen verzonnen voorbeeldcoins.</p>
+      <p class="muted" style="margin-top:10px;max-width:640px">Live: nieuwste PONS-launches (Robinhood Chain) en nieuwste pump.fun-coins (Solana). Dat is een verse slice, niet de complete historie van alle ooit gelanceerde tokens.</p>
+      <p class="muted" id="feedStatus" style="margin-top:8px;font-size:13px">Feed laden…</p>
       <div class="toolbar">
         <button class="on" data-f="all" onclick="filterBoard(this,'all')">Alles</button>
         <button data-f="rh" onclick="filterBoard(this,'rh')">Robinhood Chain</button>
@@ -174,9 +175,14 @@
     const UNIT = { rh: "ETH", sol: "SOL" };
     let chain = "rh";
     let filter = "all";
-    let coins = JSON.parse(localStorage.getItem("dl-coins") || "[]");
+    let coins = [];
 
     const $ = (id) => document.getElementById(id);
+    function escapeHtml(s) {
+      return String(s || "").replace(/[&<>"']/g, (ch) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      }[ch]));
+    }
     function toast(msg) { const t = $("toast"); t.textContent = msg; t.style.display = "block"; setTimeout(() => t.style.display = "none", 3800); }
     function show(name, id) {
       document.querySelectorAll(".view").forEach(v => v.classList.remove("on"));
@@ -187,8 +193,9 @@
       if (name === "coin") renderCoin(id);
       window.scrollTo(0, 0);
     }
-    function pct(c) { return Math.min(100, (c.raised / GOAL[c.chain]) * 100); }
-    function graduated(c) { return c.raised >= GOAL[c.chain]; }
+    function goalOf(c) { return c.goal || GOAL[c.chain]; }
+    function pct(c) { return Math.min(100, (Number(c.raised || 0) / goalOf(c)) * 100); }
+    function graduated(c) { return !!(c.graduated || c.raised >= goalOf(c)); }
     function spark(c) {
       const p = pct(c);
       const pts = [8,18,14,28,22,40,36,48,44,55].map((y,i) => `${20+i*32},${110 - y * (0.4 + p/200)}`).join(" ");
@@ -222,15 +229,15 @@
         <button class="coin" onclick="show('coin','${c.id}')">
           <div class="coin-top">
             <div>
-              <div class="name">${c.name}</div>
-              <div class="tick">$${c.symbol} · ${c.chain === "rh" ? "RH 4663" : "Solana"}</div>
+              <div class="name">${escapeHtml(c.name)}</div>
+              <div class="tick">$${escapeHtml(c.symbol)} · ${c.chain === "rh" ? "PONS · RH" : "pump.fun · SOL"}</div>
             </div>
-            <div class="mc ${c.chg>=0?'up':'down'}">${c.chg>=0?'+':''}${c.chg.toFixed(1)}%</div>
+            <div class="mc">${escapeHtml(c.vol || "")}</div>
           </div>
           <div class="bar"><i style="width:${pct(c)}%"></i></div>
           <div class="meta">
             <span>${graduated(c) ? "Graduated" : pct(c).toFixed(0) + "% naar graduation"}</span>
-            <span>${c.raised.toFixed(2)} / ${GOAL[c.chain]} ${UNIT[c.chain]}</span>
+            <span>${Number(c.raised).toFixed(2)} / ${goalOf(c)} ${UNIT[c.chain]}</span>
           </div>
         </button>
       `).join("") || `<p class="muted">Geen munten in deze filter.</p>`;
@@ -246,34 +253,31 @@
           <div class="panel">
             <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">
               <div>
-                <h1>${c.name}</h1>
-                <p class="tick" style="margin-top:6px">$${c.symbol} · ${c.chain === "rh" ? "Robinhood Chain" : "Solana"} · demo</p>
+                <h1>${escapeHtml(c.name)}</h1>
+                <p class="tick" style="margin-top:6px">$${escapeHtml(c.symbol)} · ${c.chain === "rh" ? "PONS · Robinhood Chain" : "pump.fun · Solana"}</p>
               </div>
               <span class="chip">${g ? "Graduated · AMM" : "Bonding curve"}</span>
             </div>
             <div class="chart">${spark(c)}</div>
             <div class="stats">
               <div class="stat"><b>Voortgang</b>${pct(c).toFixed(1)}%</div>
-              <div class="stat"><b>Raised</b>${c.raised.toFixed(2)} ${UNIT[c.chain]}</div>
-              <div class="stat"><b>Doel</b>${GOAL[c.chain]} ${UNIT[c.chain]}</div>
+              <div class="stat"><b>Raised</b>${Number(c.raised).toFixed(2)} ${UNIT[c.chain]}</div>
+              <div class="stat"><b>Doel</b>${goalOf(c)} ${UNIT[c.chain]}</div>
               <div class="stat"><b>24h vol</b>${c.vol}</div>
             </div>
             <div class="bar" style="height:10px;margin-top:14px"><i style="width:${pct(c)}%"></i></div>
-            <p class="muted" style="font-size:12px;margin-top:8px">${c.desc} Live wordt dit ${c.chain === "rh" ? "WETH in de PONS/Uniswap-pool" : "SOL in de pump-curve"}.</p>
-            <div class="trades">
-              <div><span class="up">Buy 0.04 ${UNIT[c.chain]}</span><span>2m</span></div>
-              <div><span class="down">Sell 0.01 ${UNIT[c.chain]}</span><span>6m</span></div>
-              <div><span class="up">Buy 0.12 ${UNIT[c.chain]}</span><span>11m</span></div>
-            </div>
+            <p class="muted" style="font-size:12px;margin-top:8px">${escapeHtml((c.desc || "").slice(0, 280))}</p>
+            ${c.address ? `<p class="tick" style="margin-top:8px;word-break:break-all">${escapeHtml(c.address)}</p>` : ""}
+            <p class="muted" style="font-size:12px;margin-top:10px">${c.vol ? "Market: " + escapeHtml(c.vol) : ""}</p>
           </div>
           <div class="panel">
             <label>Bedrag (${UNIT[c.chain]})</label>
             <input value="${c.chain === "rh" ? "0.05" : "0.5"}" />
             <div class="row" style="margin-top:10px">
-              <button class="btn btn-buy" type="button" onclick="openTrade('${c.chain}')">Trade live</button>
-              <button class="btn btn-sell" type="button" onclick="simTrade('${c.id}',-1)">Demo-sell</button>
+              <button class="btn btn-buy" type="button" onclick="window.open('${c.trade || (c.chain === "rh" ? PONS : PUMP)}','_blank','noopener')">Trade live</button>
+              <button class="btn btn-sell" type="button" onclick="window.open('${c.link || (c.chain === "rh" ? PONS : PUMP)}','_blank','noopener')">Open pad</button>
             </div>
-            <p class="warn">Trade live opent PONS of pump.fun. Demo-sell beweegt alleen de balk op deze pagina.</p>
+            <p class="warn">Trade en pad openen de officiële site. DualLaunch is alleen het overzicht.</p>
           </div>
         </div>`;
     }
@@ -367,7 +371,21 @@
       show("coin", id);
     };
 
-    renderBoard();
+    async function loadFeed() {
+      const status = $("feedStatus");
+      try {
+        const r = await fetch("/api/feed");
+        const data = await r.json();
+        if (!data.ok) throw new Error(data.error || "feed fout");
+        coins = data.coins || [];
+        if (status) status.textContent = coins.length + " live munten · PONS + pump.fun";
+        renderBoard();
+      } catch (e) {
+        if (status) status.textContent = "Feed kon niet laden. Upload ook de map api/ naar GitHub.";
+      }
+    }
+    loadFeed();
+    setInterval(loadFeed, 25000);
   </script>
 </body>
 </html>
