@@ -145,6 +145,15 @@
       <p class="kicker">Robinhood Chain · Solana</p>
       <h1>Live launches op PONS en pump.fun</h1>
       <p class="lede">DualLaunch is een board. Tokens maak en verhandel je in je eigen wallet op de officiële pads.</p>
+      <div class="stats-strip">
+        <div class="sbox"><b>Live munten</b><span id="statCount">—</span></div>
+        <div class="sbox"><b>PONS / RH</b><span id="statRh">—</span></div>
+        <div class="sbox"><b>pump.fun / SOL</b><span id="statSol">—</span></div>
+        <div class="sbox"><b>Wallet</b><span id="statWallet">Niet verbonden</span></div>
+      </div>
+      <div class="wallet-bar">
+        <input class="search" id="q" placeholder="Zoek naam, ticker of adres" />
+      </div>
       <p class="tick" id="feedStatus" style="margin-top:10px">Feed laden…</p>
       <div class="toolbar">
         <button class="on" onclick="filterBoard(this,'all')">Alles</button>
@@ -276,10 +285,15 @@
       return Math.floor(s / 86400) + "d";
     }
     function visible() {
+      const q = (($("q") && $("q").value) || "").trim().toLowerCase();
       const list = coins.filter((c) => {
-        if (filter === "rh" || filter === "sol") return c.chain === filter;
-        if (filter === "live") return !graduated(c);
-        if (filter === "grad") return graduated(c);
+        if (filter === "rh" || filter === "sol") { if (c.chain !== filter) return false; }
+        if (filter === "live" && graduated(c)) return false;
+        if (filter === "grad" && !graduated(c)) return false;
+        if (q) {
+          const hay = (c.name + " " + c.symbol + " " + (c.address || "")).toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
         return true;
       });
       list.sort((a, b) => {
@@ -290,10 +304,26 @@
       return list;
     }
     function av(c) {
-      return c.logo
-        ? `<img class="av" src="${esc(c.logo)}" alt="" onerror="this.style.opacity='.25'"/>`
-        : `<div class="av"></div>`;
+      const letter = esc((c.symbol || c.name || "?").slice(0, 2));
+      const src = esc(c.logo || "");
+      if (!src) return `<div class="av av-fallback">${letter}</div>`;
+      return `<img class="av" src="${src}" alt="" onerror="window.logoFail&&window.logoFail(this,'${letter}')"/>`;
     }
+    window.logoFail = function(img, letter) {
+      const cur = img.getAttribute("src") || "";
+      const cid = (cur.match(/ipfs\/([^/?#]+)/) || [])[1];
+      const gates = ["https://cloudflare-ipfs.com/ipfs/","https://ipfs.io/ipfs/","https://gateway.pinata.cloud/ipfs/"];
+      const n = Number(img.dataset.g || 0);
+      if (cid && n < gates.length) {
+        img.dataset.g = String(n + 1);
+        img.src = gates[n] + cid;
+        return;
+      }
+      const d = document.createElement("div");
+      d.className = "av av-fallback";
+      d.textContent = letter;
+      img.replaceWith(d);
+    };
     function renderBoard() {
       const list = visible();
       if (!list.length) {
@@ -352,6 +382,12 @@
               <button class="btn btn-lime" type="button" onclick="window.open('${esc(pad)}','_blank','noopener')">Open munt</button>
               <button class="btn btn-violet" type="button" onclick="window.open('${esc(chart)}','_blank','noopener')">Chart</button>
             </div>
+            <div class="split" style="margin-top:8px">
+              <button class="btn btn-ghost" type="button" onclick="copyText('${esc(c.address || "")}')">Kopieer contract</button>
+              <button class="btn btn-ghost" type="button" onclick="addToken('${esc(c.id)}')">Zet in wallet</button>
+            </div>
+            <p class="tick" style="margin-top:10px">${c.chain === "rh" ? "Explorer: robinhoodchain.blockscout.com" : "Explorer: solscan.io"}</p>
+            <button class="btn btn-ghost" style="width:100%;margin-top:8px" type="button" onclick="window.open('${c.chain === "rh" ? "https://robinhoodchain.blockscout.com/token/" : "https://solscan.io/token/"}' + '${esc(c.address || "")}','_blank','noopener')">Open explorer</button>
             <p class="warn">${c.chain === "rh" ? "Open munt gaat naar de PONS-pagina van dit contract. Chart is Dexscreener (robinhood/adres)." : "Open munt gaat naar pump.fun/coin/… van deze mint."}</p>
           </div>
         </div>`;
@@ -365,6 +401,60 @@
         }, 80);
       });
 
+    }
+
+    let evmAddr = "", solAddr = "", evmBal = "", solBal = "";
+    function walletLabel() {
+      const bits = [];
+      if (evmAddr) bits.push(short(evmAddr) + (evmBal ? " · " + evmBal + " ETH" : " · RH"));
+      if (solAddr) bits.push(short(solAddr) + (solBal ? " · " + solBal + " SOL" : " · SOL"));
+      return bits.join("  ·  ") || "Niet verbonden";
+    }
+    function paintWallet() {
+      const el = $("statWallet");
+      if (el) el.textContent = walletLabel();
+    }
+    async function refreshEvmBal() {
+      if (!evmAddr) return;
+      try {
+        const r = await fetch("https://rpc.mainnet.chain.robinhood.com", {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_getBalance", params: [evmAddr, "latest"] })
+        });
+        const d = await r.json();
+        evmBal = (Number(BigInt(d.result || "0x0")) / 1e18).toFixed(4);
+      } catch (e) {}
+      paintWallet();
+    }
+    async function refreshSolBal() {
+      if (!solAddr) return;
+      try {
+        const r = await fetch("https://api.mainnet-beta.solana.com", {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getBalance", params: [solAddr] })
+        });
+        const d = await r.json();
+        solBal = ((d.result && d.result.value ? d.result.value : 0) / 1e9).toFixed(3);
+      } catch (e) {}
+      paintWallet();
+    }
+    async function copyText(s) {
+      try { await navigator.clipboard.writeText(s); toast("Gekopieerd"); } catch (e) { toast(s); }
+    }
+    async function addToken(id) {
+      const c = coins.find((x) => x.id === id);
+      if (!c) return;
+      if (c.chain !== "rh") { toast("Token toevoegen in Phantom: plak het mint-adres."); copyText(c.address); return; }
+      const eth = window.ethereum;
+      if (!eth) { toast("Geen EVM-wallet"); return; }
+      try {
+        await connectEvm();
+        await eth.request({
+          method: "wallet_watchAsset",
+          params: { type: "ERC20", options: { address: c.address, symbol: String(c.symbol).slice(0, 11), decimals: 18, image: c.logo || "" } }
+        });
+        toast(c.symbol + " aangeboden aan je wallet");
+      } catch (e) { toast(e.message || "Toevoegen geannuleerd"); }
     }
     const RH = {
       chainId: "0x1237", chainName: "Robinhood Chain",
@@ -383,7 +473,11 @@
           if (e.code === 4902) await eth.request({ method: "wallet_addEthereumChain", params: [RH] });
           else if (e.code !== 4001) throw e;
         }
+        evmAddr = acc[0];
         $("btnEvm").textContent = short(acc[0]) + " · RH";
+        paintWallet();
+        refreshEvmBal();
+        toast("Robinhood Chain actief. Saldo wordt geladen.");
       } catch (e) { toast(e.message || "EVM geannuleerd"); }
     }
     async function connectSol() {
@@ -391,7 +485,11 @@
       if (!sol) { toast("Installeer Phantom."); return; }
       try {
         const res = await sol.connect();
-        $("btnSolW").textContent = short((res.publicKey || sol.publicKey).toString()) + " · SOL";
+        solAddr = (res.publicKey || sol.publicKey).toString();
+        $("btnSolW").textContent = short(solAddr) + " · SOL";
+        paintWallet();
+        refreshSolBal();
+        toast("Solana verbonden. Saldo wordt geladen.");
       } catch (e) { toast(e.message || "Solana geannuleerd"); }
     }
     $("btnEvm").onclick = connectEvm;
@@ -430,6 +528,10 @@
         coins = incoming;
         trackLive(coins);
         if (fresh.length && known.size) toast(fresh.length + " nieuwe munt(en) live");
+        if ($("statCount")) $("statCount").textContent = String(coins.length);
+        if ($("statRh")) $("statRh").textContent = String(coins.filter((c)=>c.chain==="rh").length);
+        if ($("statSol")) $("statSol").textContent = String(coins.filter((c)=>c.chain==="sol").length);
+        paintWallet();
         if (status) status.innerHTML = '<span class="live-dot"></span>' + coins.length + " live · " + new Date().toLocaleTimeString("nl-NL");
         if (document.getElementById("view-board").classList.contains("on")) renderBoard();
       } catch (e) {
