@@ -1,6 +1,9 @@
 module.exports = async function handler(req, res) {
-  res.setHeader("Cache-Control", "s-maxage=4, stale-while-revalidate=12");
+  res.setHeader("Cache-Control", "s-maxage=2, stale-while-revalidate=8");
   res.setHeader("Access-Control-Allow-Origin", "*");
+  const src = String((req.query && req.query.src) || "all");
+  const wantPons = src !== "pump";
+  const wantPump = src !== "pons";
   const hdr = { accept: "application/json" };
 
   try {
@@ -13,20 +16,20 @@ module.exports = async function handler(req, res) {
       sort + "&age=all&page=" + page + "&includeGraduated=true";
 
     const jobs = [
-      fetch(ponsExplore("newest", 1), { headers: hdr }),
-      fetch(ponsExplore("newest", 2), { headers: hdr }),
-      fetch(ponsExplore("newest", 3), { headers: hdr }),
-      fetch(ponsExplore("recentBuys", 1), { headers: hdr }),
-      fetch(ponsExplore("recentBuys", 2), { headers: hdr }),
-      fetch(ponsExplore("marketCap", 1), { headers: hdr }),
-      fetch(pumpQs("created_timestamp", 0), { headers: hdr }),
-      fetch(pumpQs("created_timestamp", 50), { headers: hdr }),
-      fetch(pumpQs("created_timestamp", 100), { headers: hdr }),
-      fetch(pumpQs("last_trade_timestamp", 0) + "&complete=false", { headers: hdr }),
-      fetch(pumpQs("last_trade_timestamp", 50) + "&complete=false", { headers: hdr }),
-      fetch(pumpQs("market_cap", 0) + "&complete=false", { headers: hdr })
+      wantPons ? fetch(ponsExplore("newest", 1), { headers: hdr }) : null,
+      wantPons ? fetch(ponsExplore("newest", 2), { headers: hdr }) : null,
+      wantPons ? fetch(ponsExplore("newest", 3), { headers: hdr }) : null,
+      wantPons ? fetch(ponsExplore("recentBuys", 1), { headers: hdr }) : null,
+      wantPons ? fetch(ponsExplore("recentBuys", 2), { headers: hdr }) : null,
+      wantPons ? fetch(ponsExplore("marketCap", 1), { headers: hdr }) : null,
+      wantPump ? fetch(pumpQs("created_timestamp", 0), { headers: hdr }) : null,
+      wantPump ? fetch(pumpQs("created_timestamp", 50), { headers: hdr }) : null,
+      wantPump ? fetch(pumpQs("created_timestamp", 100), { headers: hdr }) : null,
+      wantPump ? fetch(pumpQs("last_trade_timestamp", 0) + "&complete=false", { headers: hdr }) : null,
+      wantPump ? fetch(pumpQs("last_trade_timestamp", 50) + "&complete=false", { headers: hdr }) : null,
+      wantPump ? fetch(pumpQs("market_cap", 0) + "&complete=false", { headers: hdr }) : null
     ];
-    const settled = await Promise.all(jobs.map((p) => p.catch(() => null)));
+    const settled = await Promise.all(jobs.map((p) => (p ? p.catch(() => null) : null)));
     const [p1,p2,p3,pb1,pb2,pmc, pn0,pn50,pn100, ph0,ph50, pmc2] = settled;
 
     const flattenPons = (raw) => {
