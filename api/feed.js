@@ -102,10 +102,12 @@ module.exports = async function handler(req, res) {
     const mapPump = (t) => {
       const mint = t.mint || "";
       const realSol = Number(t.real_sol_reserves || 0) / 1e9;
-      const mcSol = Number(t.market_cap || 0);
-      const graduated = !!t.complete;
-      let raised = realSol;
-      if (raised < 0.05 && mcSol > 0) raised = Math.min(84, mcSol);
+      let created = Number(t.created_timestamp || Date.now());
+      if (created < 1e12) created *= 1000;
+      const ageMs = Date.now() - created;
+      const usd = Number(t.usd_market_cap || 0);
+      const graduated = !!t.complete || realSol >= 85 || (ageMs > 14 * 86400000 && usd > 50000);
+      let raised = Math.min(85, Math.max(0, realSol));
       if (graduated) raised = 85;
       return {
         id: "sol-" + mint,
@@ -116,7 +118,7 @@ module.exports = async function handler(req, res) {
         goal: 85,
         vol: t.usd_market_cap ? "$" + Math.round(t.usd_market_cap).toLocaleString() : "—",
         mcap: Number(t.usd_market_cap || 0),
-        created: Number(t.created_timestamp || Date.now()),
+        created,
         desc: t.description || "",
         logo: t.image_uri || "",
         address: mint,
