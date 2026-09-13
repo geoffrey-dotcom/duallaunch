@@ -370,41 +370,11 @@
       const area = d + " L" + w + " " + h + " L0 " + h + " Z";
       return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><path d="${area}" fill="${fill}"/><path d="${d}" fill="none" stroke="${col}" stroke-width="2"/></svg>`;
     }
-    function embedify(url) {
-      if (!url) return "";
-      if (!url.includes("embed=1")) url += (url.includes("?") ? "&" : "?") + "embed=1&theme=dark&info=0&trades=0&chartLeftToolbar=0&loadChartSettings=0";
-      return url;
-    }
     function embedChart(c) {
       const chain = c.chain === "rh" ? "robinhood" : "solana";
-      return embedify(c.chart || ("https://dexscreener.com/" + chain + "/" + (c.address || "")));
-    }
-    async function resolveDexPair(c) {
-      if (!c.address) return embedChart(c);
-      try {
-        const r = await fetch("https://api.dexscreener.com/latest/dex/tokens/" + encodeURIComponent(c.address));
-        const j = await r.json();
-        const pairs = j.pairs || [];
-        const want = c.chain === "rh" ? "robinhood" : "solana";
-        const hit = pairs.find((p) => String(p.chainId || p.chain || "").toLowerCase().includes(want.replace("robinhood","robin"))) || pairs[0];
-        if (hit && hit.url) return embedify(hit.url);
-      } catch (e) {}
-      return embedChart(c);
-    }
-    let chartReload = null;
-    async function mountDex(c) {
-      const frame = document.getElementById("dexChart");
-      if (!frame) return;
-      const url = await resolveDexPair(c);
-      frame.src = url;
-      if (chartReload) clearInterval(chartReload);
-      chartReload = setInterval(() => {
-        const f = document.getElementById("dexChart");
-        if (!f || !document.getElementById("view-coin").classList.contains("on")) {
-          clearInterval(chartReload); chartReload = null; return;
-        }
-        f.src = url;
-      }, 45000);
+      let url = c.chart || ("https://dexscreener.com/" + chain + "/" + (c.address || ""));
+      if (!url.includes("embed=1")) url += (url.includes("?") ? "&" : "?") + "embed=1&theme=dark&info=0&trades=0&chartLeftToolbar=0&loadChartSettings=0";
+      return url;
     }
     function filterBoard(btn, f) {
       filter = f;
@@ -598,7 +568,7 @@
               <div class="stat"><b>Market</b>${esc(c.vol || "—")}</div>
             </div>
             <div class="chart-wrap">
-              <iframe class="chart-frame" id="dexChart" title="DexScreener" src="about:blank" allow="clipboard-write; fullscreen" referrerpolicy="no-referrer-when-downgrade"></iframe>
+              <iframe class="chart-frame" id="dexChart" title="DexScreener" src="${esc(embedChart(c))}" allow="clipboard-write; fullscreen" referrerpolicy="no-referrer-when-downgrade"></iframe>
             </div>
             <div class="bar" style="height:8px;margin-top:16px"><i style="width:${pct(c)}%"></i></div>
             <p class="lede" style="margin-top:14px">${esc((c.desc || "No description.").slice(0, 280))}</p>
@@ -829,35 +799,28 @@
       });
       return Object.values(map);
     }
-    function applyCoins(extra) {
-      const mine = JSON.parse(localStorage.getItem("dl-mine") || "[]");
-      const incoming = uniqCoins(mine.concat(coins).concat(extra || []));
-      const known = new Set(coins.map((c) => c.id));
-      const fresh = incoming.filter((c) => !known.has(c.id));
-      coins = incoming;
-      trackLive(coins);
-      if (fresh.length && known.size) toast(fresh.length + " new coin(s) live");
-      if ($("statCount")) $("statCount").textContent = String(coins.length);
-      if ($("statRh")) $("statRh").textContent = String(coins.filter((c)=>c.chain==="rh").length);
-      if ($("statSol")) $("statSol").textContent = String(coins.filter((c)=>c.chain==="sol").length);
-      paintWallet();
-      const status = $("feedStatus");
-      if (status) status.innerHTML = '<span class="live-dot"></span>' + coins.length + " live · " + new Date().toLocaleTimeString();
-      if (document.getElementById("view-board").classList.contains("on")) renderBoard();
-    }
-    async function pull(src) {
-      const r = await fetch("/api/feed?src=" + src + "&t=" + Date.now());
-      const data = await r.json();
-      if (!data.ok) throw new Error(data.error || src);
-      applyCoins(data.coins || []);
-    }
     async function loadFeed() {
       if (feedBusy) return;
       feedBusy = true;
+      const status = $("feedStatus");
       try {
-        await Promise.all([pull("pons").catch(() => null), pull("pump").catch(() => null)]);
+        const r = await fetch("/api/feed?t=" + Date.now());
+        const data = await r.json();
+        if (!data.ok) throw new Error(data.error || "feed");
+        const mine = JSON.parse(localStorage.getItem("dl-mine") || "[]");
+        const incoming = uniqCoins(mine.concat(data.coins || []));
+        const known = new Set(coins.map((c) => c.id));
+        const fresh = incoming.filter((c) => !known.has(c.id));
+        coins = incoming;
+        trackLive(coins);
+        if (fresh.length && known.size) toast(fresh.length + " new coin(s) live");
+        if ($("statCount")) $("statCount").textContent = String(coins.length);
+        if ($("statRh")) $("statRh").textContent = String(coins.filter((c)=>c.chain==="rh").length);
+        if ($("statSol")) $("statSol").textContent = String(coins.filter((c)=>c.chain==="sol").length);
+        paintWallet();
+        if (status) status.innerHTML = '<span class="live-dot"></span>' + coins.length + " live · " + new Date().toLocaleTimeString("nl-NL");
+        if (document.getElementById("view-board").classList.contains("on")) renderBoard();
       } catch (e) {
-        const status = $("feedStatus");
         if (status) status.textContent = "Feed failed to load — check api/feed.js on Vercel.";
       } finally {
         feedBusy = false;
