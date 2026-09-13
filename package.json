@@ -3,5 +3,8 @@
   "private": true,
   "scripts": {
     "start": "npx --yes serve ."
+  },
+  "dependencies": {
+    "@vercel/analytics": "^2.0.1"
   }
 }
