@@ -68,7 +68,7 @@
     .toolbar button.on { border-color: var(--lime); color: var(--lime); background: #12121a; }
     .table { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
     .tile {
-      display: flex; flex-direction: column; gap: 12px;
+      display: flex; flex-direction: column; gap: 10px;
       text-align: left; width: 100%; cursor: pointer; font-family: inherit; color: inherit;
       background: linear-gradient(180deg,#141422,#0e0e16); border: 1px solid var(--line); border-radius: 16px; padding: 16px;
     }
@@ -183,6 +183,8 @@
       <button id="nav-legal" onclick="show('legal')">Disclaimer</button>
     </div>
     <div class="wallets">
+      <a class="btn btn-ghost" id="sideX" href="https://x.com/duallaunch" target="_blank" rel="noopener">X</a>
+      <a class="btn btn-ghost" id="sideTg" href="#" target="_blank" rel="noopener" style="display:none">Telegram</a>
       <button class="btn btn-ghost" id="btnEvm" type="button">Connect EVM</button>
       <button class="btn btn-ghost" id="btnSolW" type="button">Connect Solana</button>
     </div>
@@ -290,13 +292,7 @@
       </div>
     </section>
   </main>
-  <footer>
-      <span>DualLaunch · not financial advice</span>
-      <div class="foot-links">
-        <a href="https://x.com/duallaunch" target="_blank" rel="noopener">X</a>
-        <a id="tgFoot" href="#" target="_blank" rel="noopener" style="display:none">Telegram</a>
-      </div>
-    </footer>
+  <footer>DualLaunch · not financial advice</footer>
   </div>
   <div class="toast" id="toast"></div>
 
@@ -370,11 +366,32 @@
       const area = d + " L" + w + " " + h + " L0 " + h + " Z";
       return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><path d="${area}" fill="${fill}"/><path d="${d}" fill="none" stroke="${col}" stroke-width="2"/></svg>`;
     }
-    function embedChart(c) {
-      const chain = c.chain === "rh" ? "robinhood" : "solana";
-      let url = c.chart || ("https://dexscreener.com/" + chain + "/" + (c.address || ""));
+    function embedify(url) {
+      if (!url) return "";
       if (!url.includes("embed=1")) url += (url.includes("?") ? "&" : "?") + "embed=1&theme=dark&info=0&trades=0&chartLeftToolbar=0&loadChartSettings=0";
       return url;
+    }
+    function embedChart(c) {
+      const chain = c.chain === "rh" ? "robinhood" : "solana";
+      return embedify(c.chart || ("https://dexscreener.com/" + chain + "/" + (c.address || "")));
+    }
+    async function resolveDexPair(c) {
+      if (!c.address) return embedChart(c);
+      try {
+        const r = await fetch("https://api.dexscreener.com/latest/dex/tokens/" + encodeURIComponent(c.address));
+        const j = await r.json();
+        const pairs = j.pairs || [];
+        const want = c.chain === "rh" ? "robinhood" : "solana";
+        const hit = pairs.find((p) => String(p.chainId || p.chain || "").toLowerCase().includes(want.replace("robinhood","robin"))) || pairs[0];
+        if (hit && hit.url) return embedify(hit.url);
+      } catch (e) {}
+      return embedChart(c);
+    }
+    async function mountDex(c) {
+      const frame = document.getElementById("dexChart");
+      if (!frame) return;
+      const url = await resolveDexPair(c);
+      if (url && frame.getAttribute("src") !== url) frame.src = url;
     }
     function filterBoard(btn, f) {
       filter = f;
@@ -487,8 +504,6 @@
       return graduated(c) ? "Graduated" : pct(c).toFixed(0) + "% curve · " + Number(c.raised).toFixed(2) + " " + UNIT[c.chain];
     }
     function tileHtml(c) {
-      window._sparkHtml = window._sparkHtml || {};
-      window._sparkHtml[c.id] = sparkSvg(c);
       const ch = chgBits(c);
       return `<button class="tile" data-id="${esc(c.id)}" onclick="show('coin','${esc(c.id)}')">
           <div class="tile-top">
@@ -498,8 +513,7 @@
             </div></div>
             <div class="chg ${ch.cls} js-chg">${ch.txt}</div>
           </div>
-          <div class="js-chart">${boardChart(c)}</div>
-          <div class="mc js-mc">${esc(c.vol || "—")}</div>
+          <div class="mc js-mc">${esc(c.vol || "—")} mcap</div>
           <div class="bar"><i class="js-bar" style="width:${pct(c)}%"></i></div>
           <div class="pct js-pct">${pctLine(c)}</div>
           ${socialBtns(c, true)}
@@ -568,7 +582,7 @@
               <div class="stat"><b>Market</b>${esc(c.vol || "—")}</div>
             </div>
             <div class="chart-wrap">
-              <iframe class="chart-frame" id="dexChart" title="DexScreener" src="${esc(embedChart(c))}" allow="clipboard-write; fullscreen" referrerpolicy="no-referrer-when-downgrade"></iframe>
+              <iframe class="chart-frame" id="dexChart" title="DexScreener" src="${esc(embedChart(c))}" allow="clipboard-write; fullscreen"></iframe>
             </div>
             <div class="bar" style="height:8px;margin-top:16px"><i style="width:${pct(c)}%"></i></div>
             <p class="lede" style="margin-top:14px">${esc((c.desc || "No description.").slice(0, 280))}</p>
@@ -590,12 +604,13 @@
             <p class="warn">${c.chain === "rh" ? "Chart is DexScreener. Open coin goes to PONS." : "Chart is DexScreener. Open coin goes to pump.fun."}</p>
           </div>
         </div>`;
+      mountDex(c);
     }
 
     (function paintSocial(){
-      const x = document.querySelector("footer .foot-links a");
+      const x = document.getElementById("sideX");
       if (x && SOCIAL.x) x.href = SOCIAL.x;
-      const tg = document.getElementById("tgFoot");
+      const tg = document.getElementById("sideTg");
       if (tg && SOCIAL.tg) { tg.href = SOCIAL.tg; tg.style.display = ""; }
     })();
     let evmAddr = "", solAddr = "", evmBal = "", solBal = "";
@@ -799,28 +814,35 @@
       });
       return Object.values(map);
     }
+    function applyCoins(extra) {
+      const mine = JSON.parse(localStorage.getItem("dl-mine") || "[]");
+      const incoming = uniqCoins(mine.concat(coins).concat(extra || []));
+      const known = new Set(coins.map((c) => c.id));
+      const fresh = incoming.filter((c) => !known.has(c.id));
+      coins = incoming;
+      trackLive(coins);
+      if (fresh.length && known.size) toast(fresh.length + " new coin(s) live");
+      if ($("statCount")) $("statCount").textContent = String(coins.length);
+      if ($("statRh")) $("statRh").textContent = String(coins.filter((c)=>c.chain==="rh").length);
+      if ($("statSol")) $("statSol").textContent = String(coins.filter((c)=>c.chain==="sol").length);
+      paintWallet();
+      const status = $("feedStatus");
+      if (status) status.innerHTML = '<span class="live-dot"></span>' + coins.length + " live · " + new Date().toLocaleTimeString();
+      if (document.getElementById("view-board").classList.contains("on")) renderBoard();
+    }
+    async function pull(src) {
+      const r = await fetch("/api/feed?src=" + src + "&t=" + Date.now());
+      const data = await r.json();
+      if (!data.ok) throw new Error(data.error || src);
+      applyCoins(data.coins || []);
+    }
     async function loadFeed() {
       if (feedBusy) return;
       feedBusy = true;
-      const status = $("feedStatus");
       try {
-        const r = await fetch("/api/feed?t=" + Date.now());
-        const data = await r.json();
-        if (!data.ok) throw new Error(data.error || "feed");
-        const mine = JSON.parse(localStorage.getItem("dl-mine") || "[]");
-        const incoming = uniqCoins(mine.concat(data.coins || []));
-        const known = new Set(coins.map((c) => c.id));
-        const fresh = incoming.filter((c) => !known.has(c.id));
-        coins = incoming;
-        trackLive(coins);
-        if (fresh.length && known.size) toast(fresh.length + " new coin(s) live");
-        if ($("statCount")) $("statCount").textContent = String(coins.length);
-        if ($("statRh")) $("statRh").textContent = String(coins.filter((c)=>c.chain==="rh").length);
-        if ($("statSol")) $("statSol").textContent = String(coins.filter((c)=>c.chain==="sol").length);
-        paintWallet();
-        if (status) status.innerHTML = '<span class="live-dot"></span>' + coins.length + " live · " + new Date().toLocaleTimeString("nl-NL");
-        if (document.getElementById("view-board").classList.contains("on")) renderBoard();
+        await Promise.all([pull("pons").catch(() => null), pull("pump").catch(() => null)]);
       } catch (e) {
+        const status = $("feedStatus");
         if (status) status.textContent = "Feed failed to load — check api/feed.js on Vercel.";
       } finally {
         feedBusy = false;
