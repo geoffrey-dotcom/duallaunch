@@ -56,7 +56,16 @@ function readBody(req) {
 
 module.exports = async function handler(req, res) {
   if (req.method === "GET") {
-    res.status(200).json({ ok: true, bot: "DualLaunch", hasToken: !!TOKEN });
+    const q = req.query || {};
+    if (q.ping && TOKEN && process.env.TG_PONS_CHAT) {
+      const sent = await tg("sendMessage", {
+        chat_id: process.env.TG_PONS_CHAT,
+        text: "DualLaunch bot test — if you see this, PONS chat ID is correct."
+      });
+      res.status(200).json({ ok: true, version: "v3", hasToken: true, ping: sent });
+      return;
+    }
+    res.status(200).json({ ok: true, version: "v3", bot: "DualLaunch", hasToken: !!TOKEN });
     return;
   }
   if (!TOKEN) {
