@@ -45,23 +45,32 @@ async function feed(src) {
   return (j.coins || []).filter((c) => Number(c.mcap || 0) >= MIN_MCAP);
 }
 
+function readBody(req) {
+  let raw = req.body;
+  if (raw == null) return {};
+  if (typeof raw === "string") {
+    try { return JSON.parse(raw); } catch (e) { return {}; }
+  }
+  return raw;
+}
+
 module.exports = async function handler(req, res) {
   if (req.method === "GET") {
-    res.status(200).json({ ok: true, bot: "DualLaunch" });
+    res.status(200).json({ ok: true, bot: "DualLaunch", hasToken: !!TOKEN });
     return;
   }
   if (!TOKEN) {
     res.status(200).json({ ok: false, error: "missing TELEGRAM_BOT_TOKEN" });
     return;
   }
-  const update = req.body || {};
-  const msg = update.message || update.channel_post;
+  const update = readBody(req);
+  const msg = update.message || update.edited_message || update.channel_post;
   if (!msg || !msg.text) {
     res.status(200).json({ ok: true });
     return;
   }
   const chat = msg.chat.id;
-  const text = String(msg.text || "").trim();
+  const text = String(msg.text || "").replace(/@\w+/g, "").trim();
   const low = text.toLowerCase();
 
   try {
