@@ -738,9 +738,22 @@
       blockExplorerUrls: ["https://robinhoodchain.blockscout.com"]
     };
     function short(a) { return a ? a.slice(0, 6) + "…" + a.slice(-4) : ""; }
+    function evmProvider() {
+      const e = window.ethereum;
+      if (!e) return null;
+      if (e.providers && e.providers.length) {
+        return e.providers.find((p) => p.isMetaMask || p.isRabby || p.isCoinbaseWallet) || e.providers[0];
+      }
+      return e;
+    }
+    function solProvider() {
+      const w = window;
+      const list = [w.solana, w.phantom && w.phantom.solana, w.solflare, w.backpack, w.glow];
+      return list.find((p) => p && (p.connect || p.publicKey)) || null;
+    }
     async function connectEvm() {
-      const eth = window.ethereum;
-      if (!eth) { toast("Install MetaMask or Rabby."); return; }
+      const eth = evmProvider();
+      if (!eth) { toast("No EVM wallet in this browser. Open MetaMask or Rabby, or use their in-app browser."); return; }
       try {
         const acc = await eth.request({ method: "eth_requestAccounts" });
         try { await eth.request({ method: "wallet_switchEthereumChain", params: [{ chainId: RH.chainId }] }); }
@@ -757,8 +770,8 @@
       } catch (e) { toast(e.message || "EVM cancelled"); }
     }
     async function connectSol() {
-      const sol = window.solana || window.phantom?.solana;
-      if (!sol) { toast("Install Phantom."); return; }
+      const sol = solProvider();
+      if (!sol) { toast("No Solana wallet here. Open Phantom / Solflare in-app browser, or use Open Jupiter on Swap."); return; }
       try {
         const res = await sol.connect();
         solAddr = (res.publicKey || sol.publicKey).toString();
@@ -771,8 +784,6 @@
     }
     $("btnEvm").onclick = connectEvm;
     $("btnSolW").onclick = connectSol;
-    if ($("goPons")) $("goPons").addEventListener("click", () => { connectEvm(); });
-    if ($("goPump")) $("goPump").addEventListener("click", () => { connectSol(); });
 
     let jupReady = false;
     function initSwap() {
@@ -781,6 +792,8 @@
           window.Jupiter.init({
             displayMode: "integrated",
             integratedTargetId: "jupiter-plugin",
+            defaultExplorer: "Solscan",
+            enableWalletPassthrough: false,
             branding: { name: "DualLaunch" },
             containerStyles: { width: "100%", borderRadius: "16px", background: "transparent" }
           });
