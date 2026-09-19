@@ -1,8 +1,5 @@
 {
   "cleanUrls": true,
-  "crons": [
-    { "path": "/api/alerts", "schedule": "*/5 * * * *" }
-  ],
   "headers": [
     {
       "source": "/(.*)",
