@@ -438,10 +438,16 @@
       return embedChart(c);
     }
     async function mountDex(c) {
+      const wrap = document.querySelector("#view-coin .chart-wrap");
       const frame = document.getElementById("dexChart");
-      if (!frame) return;
+      if (!wrap || !frame) return;
       const url = await resolveDexPair(c);
-      if (url && frame.getAttribute("src") !== url) frame.src = url;
+      frame.src = url;
+      const note = document.getElementById("chartNote");
+      setTimeout(() => {
+        if (!document.getElementById("view-coin").classList.contains("on")) return;
+        if (note) note.style.display = "block";
+      }, 7000);
     }
     function filterBoard(btn, f) {
       filter = f;
@@ -622,12 +628,13 @@
       board.appendChild(frag);
       board.dataset.ids = ids;
     }
-    function renderCoin(id) {
+    async function renderCoin(id) {
       const c = coins.find((x) => x.id === id);
       if (!c) return;
       const g = graduated(c);
       const pad = c.link || (c.chain === "rh" ? PONS_CREATE : PUMP_CREATE);
       const chart = c.chart || pad;
+      const dex = await resolveDexPair(c);
       $("view-coin").innerHTML = `
         <button class="btn btn-ghost" onclick="show('board')" style="margin-bottom:16px">← Board</button>
         <div class="detail">
@@ -643,7 +650,8 @@
               <div class="stat"><b>Market</b>${esc(c.vol || "—")}</div>
             </div>
             <div class="chart-wrap">
-              <iframe class="chart-frame" id="dexChart" title="DexScreener" src="${esc(embedChart(c))}" allow="clipboard-write; fullscreen"></iframe>
+              <iframe class="chart-frame" id="dexChart" title="DexScreener" src="${esc(dex)}" allow="clipboard-write; fullscreen"></iframe>
+              <p class="tick" id="chartNote" style="display:none;padding:12px">Chart still loading or no pair yet. Use Open DexScreener.</p>
             </div>
             <div class="bar" style="height:8px;margin-top:16px"><i style="width:${pct(c)}%"></i></div>
             <p class="lede" style="margin-top:14px">${esc((c.desc || "No description.").slice(0, 280))}</p>
@@ -669,7 +677,10 @@
             <p class="warn">${c.chain === "rh" ? "Chart is DexScreener. Empty chart = no pair yet. Open coin goes to PONS." : "Chart is DexScreener. Empty chart = no pair yet. Open coin goes to pump.fun."}</p>
           </div>
         </div>`;
-      mountDex(c);
+      setTimeout(() => {
+        const n = document.getElementById("chartNote");
+        if (n && document.getElementById("view-coin").classList.contains("on")) n.style.display = "block";
+      }, 8000);
     }
 
     (function paintSocial(){
