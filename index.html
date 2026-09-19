@@ -68,7 +68,7 @@
     .toolbar button.on { border-color: var(--lime); color: var(--lime); background: #12121a; }
     .table { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
     .tile {
-      display: flex; flex-direction: column; gap: 12px;
+      display: flex; flex-direction: column; gap: 10px;
       text-align: left; width: 100%; cursor: pointer; font-family: inherit; color: inherit;
       background: linear-gradient(180deg,#141422,#0e0e16); border: 1px solid var(--line); border-radius: 16px; padding: 16px;
     }
@@ -180,9 +180,13 @@
       <button id="nav-launch" onclick="show('launch')">Launch</button>
       <button id="nav-wallet" onclick="show('wallet')">Wallet</button>
       <button id="nav-swap" onclick="show('swap')">Swap</button>
+      <button id="nav-listed" onclick="show('listed')">Listed</button>
+      <button id="nav-submit" onclick="show('submit')">Submit</button>
       <button id="nav-legal" onclick="show('legal')">Disclaimer</button>
     </div>
     <div class="wallets">
+      <a class="btn btn-ghost" id="sideX" href="https://x.com/duallaunch" target="_blank" rel="noopener">X</a>
+      <a class="btn btn-ghost" id="sideTg" href="#" target="_blank" rel="noopener" style="display:none">Telegram</a>
       <button class="btn btn-ghost" id="btnEvm" type="button">Connect EVM</button>
       <button class="btn btn-ghost" id="btnSolW" type="button">Connect Solana</button>
     </div>
@@ -209,6 +213,8 @@
         <button data-f="live" onclick="filterBoard(this,'live')">Active / curve</button>
         <button data-f="grad" onclick="filterBoard(this,'grad')">Graduated</button>
         <button data-f="soon" onclick="filterBoard(this,'soon')">About to graduate</button>
+        <button data-f="m15" onclick="filterBoard(this,'m15')">MC $15k+</button>
+        <button data-f="watch" onclick="filterBoard(this,'watch')">Watchlist</button>
       </div>
       <div class="toolbar" id="tb-sort">
         <button id="sort-new" class="on" onclick="setSort(this,'new')">Newest</button>
@@ -223,6 +229,7 @@
         <button onclick="setAge(this,'7d')">7d</button>
       </div>
       <div class="table" id="board"></div>
+      <button class="btn btn-ghost" id="moreBtn" type="button" onclick="moreBoard()" style="margin-top:16px;display:none">Load more</button>
     </section>
 
     <section id="view-launch" class="view">
@@ -277,10 +284,30 @@
         <button class="btn btn-ghost" type="button" onclick="connectEvm()">Connect / switch RH</button>
         <button class="btn btn-ghost" type="button" onclick="connectSol()">Connect Solana</button>
         <button class="btn btn-ghost" type="button" onclick="scanHoldings()">Scan board-tokens</button>
+        <button class="btn btn-ghost" type="button" onclick="toggleAlert70()">Curve alerts 70%</button>
       </div>
       <div id="holdings" class="table"></div>
     </section>
 
+    <section id="view-listed" class="view">
+      <p class="kicker">Community</p>
+      <h1>Listed tokens</h1>
+      <p class="lede">Tokens submitted on DualLaunch. Data from DexScreener when a pair exists.</p>
+      <div class="table" id="listedBoard"></div>
+    </section>
+    <section id="view-submit" class="view">
+      <p class="kicker">Free listing</p>
+      <h1>Submit a token</h1>
+      <p class="lede">Paste a contract. We look it up on DexScreener. No payment. Spam / no pair may not show a chart.</p>
+      <div class="panel" style="max-width:480px;margin-top:16px">
+        <label>Chain</label>
+        <select id="subChain"><option value="sol">Solana</option><option value="rh">Robinhood / PONS</option></select>
+        <label>Contract / mint</label>
+        <input id="subAddr" placeholder="mint or 0x…" />
+        <button class="btn btn-lime" type="button" style="margin-top:14px" onclick="submitToken()">Lookup & list</button>
+        <p class="tick" id="subStatus" style="margin-top:10px"></p>
+      </div>
+    </section>
     <section id="view-legal" class="view">
       <p class="kicker">Legal</p>
       <h1>Disclaimer</h1>
@@ -290,13 +317,7 @@
       </div>
     </section>
   </main>
-  <footer>
-      <span>DualLaunch · not financial advice</span>
-      <div class="foot-links">
-        <a href="https://x.com/duallaunch" target="_blank" rel="noopener">X</a>
-        <a id="tgFoot" href="#" target="_blank" rel="noopener" style="display:none">Telegram</a>
-      </div>
-    </footer>
+  <footer>DualLaunch · not financial advice</footer>
   </div>
   <div class="toast" id="toast"></div>
 
@@ -306,7 +327,7 @@
     const UNIT = { rh: "ETH", sol: "SOL" };
     const PONS_CREATE = "https://www.ponsfamily.com/launchpad/create";
     const PUMP_CREATE = "https://pump.fun/create";
-    let chain = "rh", filter = "all", sortBy = "new", ageBy = "all", coins = [];
+    let chain = "rh", filter = "all", sortBy = "new", ageBy = "all", coins = [], boardLimit = 24;
     const $ = (id) => document.getElementById(id);
     const esc = (s) => String(s || "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
     function toast(msg) { const t = $("toast"); t.textContent = msg; t.style.display = "block"; setTimeout(() => t.style.display = "none", 3800); }
@@ -318,10 +339,35 @@
       $("nav-legal").classList.toggle("on", name === "legal");
       if ($("nav-wallet")) $("nav-wallet").classList.toggle("on", name === "wallet");
       if ($("nav-swap")) $("nav-swap").classList.toggle("on", name === "swap");
-      if (name === "coin") renderCoin(id);
+      if ($("nav-listed")) $("nav-listed").classList.toggle("on", name === "listed");
+      if ($("nav-submit")) $("nav-submit").classList.toggle("on", name === "submit");
+      if (name === "coin") { renderCoin(id); try { history.replaceState(null,"","#coin="+encodeURIComponent(id)); } catch(e){} }
+      else if (name === "listed") { renderListed(); try { history.replaceState(null,"","#listed"); } catch(e){} }
+      else if (name === "submit") { try { history.replaceState(null,"","#submit"); } catch(e){} }
+      else if (name === "board") { try { history.replaceState(null,"","#board"); } catch(e){} }
       if (name === "wallet") renderWallet();
       if (name === "swap") initSwap();
       window.scrollTo(0, 0);
+    }
+    function pins() { try { return JSON.parse(localStorage.getItem("dl-pins")||"[]"); } catch(e){ return []; } }
+    function setPins(a) { localStorage.setItem("dl-pins", JSON.stringify(a)); }
+    function isPinned(id) { return pins().indexOf(id) >= 0; }
+    function togglePin(id, ev) {
+      if (ev) ev.stopPropagation();
+      const a = pins();
+      const i = a.indexOf(id);
+      if (i>=0) a.splice(i,1); else a.push(id);
+      setPins(a);
+      toast(i>=0 ? "Removed from watchlist" : "Pinned");
+      if (document.getElementById("view-board").classList.contains("on")) renderBoard(true);
+    }
+    function listed() { try { return JSON.parse(localStorage.getItem("dl-listed")||"[]"); } catch(e){ return []; } }
+    function setListed(a) { localStorage.setItem("dl-listed", JSON.stringify(a)); }
+    function alertsOn() { return localStorage.getItem("dl-alert70") === "1"; }
+    function shareCoin(id, ev) {
+      if (ev) ev.stopPropagation();
+      const url = location.origin + location.pathname + "#coin=" + encodeURIComponent(id);
+      navigator.clipboard.writeText(url).then(()=>toast("Link copied")).catch(()=>toast(url));
     }
     const goalOf = (c) => c.goal || GOAL[c.chain];
     const pct = (c) => Math.min(100, (Number(c.raised || 0) / goalOf(c)) * 100);
@@ -370,11 +416,32 @@
       const area = d + " L" + w + " " + h + " L0 " + h + " Z";
       return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><path d="${area}" fill="${fill}"/><path d="${d}" fill="none" stroke="${col}" stroke-width="2"/></svg>`;
     }
-    function embedChart(c) {
-      const chain = c.chain === "rh" ? "robinhood" : "solana";
-      let url = c.chart || ("https://dexscreener.com/" + chain + "/" + (c.address || ""));
+    function embedify(url) {
+      if (!url) return "";
       if (!url.includes("embed=1")) url += (url.includes("?") ? "&" : "?") + "embed=1&theme=dark&info=0&trades=0&chartLeftToolbar=0&loadChartSettings=0";
       return url;
+    }
+    function embedChart(c) {
+      const chain = c.chain === "rh" ? "robinhood" : "solana";
+      return embedify(c.chart || ("https://dexscreener.com/" + chain + "/" + (c.address || "")));
+    }
+    async function resolveDexPair(c) {
+      if (!c.address) return embedChart(c);
+      try {
+        const r = await fetch("https://api.dexscreener.com/latest/dex/tokens/" + encodeURIComponent(c.address));
+        const j = await r.json();
+        const pairs = j.pairs || [];
+        const want = c.chain === "rh" ? "robinhood" : "solana";
+        const hit = pairs.find((p) => String(p.chainId || p.chain || "").toLowerCase().includes(want.replace("robinhood","robin"))) || pairs[0];
+        if (hit && hit.url) return embedify(hit.url);
+      } catch (e) {}
+      return embedChart(c);
+    }
+    async function mountDex(c) {
+      const frame = document.getElementById("dexChart");
+      if (!frame) return;
+      const url = await resolveDexPair(c);
+      if (url && frame.getAttribute("src") !== url) frame.src = url;
     }
     function filterBoard(btn, f) {
       filter = f;
@@ -410,6 +477,8 @@
         if (filter === "live" && graduated(c)) return false;
         if (filter === "grad" && !graduated(c)) return false;
         if (filter === "soon" && (graduated(c) || pct(c) < 70 || pct(c) >= 100 || Date.now() - Number(c.created||0) > 7*86400000)) return false;
+        if (filter === "m15" && Number(c.mcap||0) < 15000) return false;
+        if (filter === "watch" && !isPinned(c.id)) return false;
         if (ageBy === "24h" && now - Number(c.created || 0) > 86400000) return false;
         if (ageBy === "7d" && now - Number(c.created || 0) > 7 * 86400000) return false;
         if (q) {
@@ -487,8 +556,6 @@
       return graduated(c) ? "Graduated" : pct(c).toFixed(0) + "% curve · " + Number(c.raised).toFixed(2) + " " + UNIT[c.chain];
     }
     function tileHtml(c) {
-      window._sparkHtml = window._sparkHtml || {};
-      window._sparkHtml[c.id] = sparkSvg(c);
       const ch = chgBits(c);
       return `<button class="tile" data-id="${esc(c.id)}" onclick="show('coin','${esc(c.id)}')">
           <div class="tile-top">
@@ -498,10 +565,13 @@
             </div></div>
             <div class="chg ${ch.cls} js-chg">${ch.txt}</div>
           </div>
-          <div class="js-chart">${boardChart(c)}</div>
-          <div class="mc js-mc">${esc(c.vol || "—")}</div>
+          <div class="mc js-mc">${esc(c.vol || "—")} mcap</div>
           <div class="bar"><i class="js-bar" style="width:${pct(c)}%"></i></div>
           <div class="pct js-pct">${pctLine(c)}</div>
+          <div class="slinks">
+            <button class="sbtn" type="button" onclick="togglePin('${esc(c.id)}',event)">${isPinned(c.id)?"Unpin":"Pin"}</button>
+            <button class="sbtn" type="button" onclick="shareCoin('${esc(c.id)}',event)">Share</button>
+          </div>
           ${socialBtns(c, true)}
         </button>`;
     }
@@ -518,9 +588,14 @@
       const pl = el.querySelector(".js-pct");
       if (pl) pl.textContent = pctLine(c);
     }
-    function renderBoard() {
-      const list = visible();
+    function moreBoard(){ boardLimit += 24; renderBoard(true); }
+    function renderBoard(force) {
+      if (force && $("board")) $("board").dataset.ids = "";
+      const all = visible();
+      const list = all.slice(0, boardLimit);
       const board = $("board");
+      const more = $("moreBtn");
+      if (more) more.style.display = all.length > list.length ? "" : "none";
       if (!list.length) {
         board.innerHTML = `<div style="padding:28px;grid-column:1/-1" class="lede">No coins in this filter, or the feed is still loading.</div>`;
         return;
@@ -568,7 +643,7 @@
               <div class="stat"><b>Market</b>${esc(c.vol || "—")}</div>
             </div>
             <div class="chart-wrap">
-              <iframe class="chart-frame" id="dexChart" title="DexScreener" src="${esc(embedChart(c))}" allow="clipboard-write; fullscreen" referrerpolicy="no-referrer-when-downgrade"></iframe>
+              <iframe class="chart-frame" id="dexChart" title="DexScreener" src="${esc(embedChart(c))}" allow="clipboard-write; fullscreen"></iframe>
             </div>
             <div class="bar" style="height:8px;margin-top:16px"><i style="width:${pct(c)}%"></i></div>
             <p class="lede" style="margin-top:14px">${esc((c.desc || "No description.").slice(0, 280))}</p>
@@ -587,15 +662,20 @@
             </div>
             <p class="tick" style="margin-top:10px">${c.chain === "rh" ? "Explorer: robinhoodchain.blockscout.com" : "Explorer: solscan.io"}</p>
             <button class="btn btn-ghost" style="width:100%;margin-top:8px" type="button" onclick="window.open('${c.chain === "rh" ? "https://robinhoodchain.blockscout.com/token/" : "https://solscan.io/token/"}' + '${esc(c.address || "")}','_blank','noopener')">Open explorer</button>
-            <p class="warn">${c.chain === "rh" ? "Chart is DexScreener. Open coin goes to PONS." : "Chart is DexScreener. Open coin goes to pump.fun."}</p>
+            <div class="split" style="margin-top:8px">
+              <button class="btn btn-ghost" type="button" onclick="togglePin('${esc(c.id)}')">Watchlist</button>
+              <button class="btn btn-ghost" type="button" onclick="shareCoin('${esc(c.id)}')">Copy link</button>
+            </div>
+            <p class="warn">${c.chain === "rh" ? "Chart is DexScreener. Empty chart = no pair yet. Open coin goes to PONS." : "Chart is DexScreener. Empty chart = no pair yet. Open coin goes to pump.fun."}</p>
           </div>
         </div>`;
+      mountDex(c);
     }
 
     (function paintSocial(){
-      const x = document.querySelector("footer .foot-links a");
+      const x = document.getElementById("sideX");
       if (x && SOCIAL.x) x.href = SOCIAL.x;
-      const tg = document.getElementById("tgFoot");
+      const tg = document.getElementById("sideTg");
       if (tg && SOCIAL.tg) { tg.href = SOCIAL.tg; tg.style.display = ""; }
     })();
     let evmAddr = "", solAddr = "", evmBal = "", solBal = "";
@@ -663,7 +743,7 @@
         <button class="tile" onclick="show('coin','${esc(c.id)}')">
           <div class="tile-top"><div class="ident">${av(c)}<div>
             <div class="name">${esc(c.name)}</div>
-            <div class="tick">${n.toLocaleString(undefined,{maximumFractionDigits:2})} ${esc(c.symbol)}</div>
+            <div class="tick">${n.toLocaleString(undefined,{maximumFractionDigits:4})} ${esc(c.symbol)} · ${esc(c.vol||"—")}</div>
           </div></div></div>
         </button>`).join("");
     }
@@ -723,9 +803,22 @@
       blockExplorerUrls: ["https://robinhoodchain.blockscout.com"]
     };
     function short(a) { return a ? a.slice(0, 6) + "…" + a.slice(-4) : ""; }
+    function evmProvider() {
+      const e = window.ethereum;
+      if (!e) return null;
+      if (e.providers && e.providers.length) {
+        return e.providers.find((p) => p.isMetaMask || p.isRabby || p.isCoinbaseWallet) || e.providers[0];
+      }
+      return e;
+    }
+    function solProvider() {
+      const w = window;
+      const list = [w.solana, w.phantom && w.phantom.solana, w.solflare, w.backpack, w.glow];
+      return list.find((p) => p && (p.connect || p.publicKey)) || null;
+    }
     async function connectEvm() {
-      const eth = window.ethereum;
-      if (!eth) { toast("Install MetaMask or Rabby."); return; }
+      const eth = evmProvider();
+      if (!eth) { toast("No EVM wallet in this browser. Open MetaMask or Rabby, or use their in-app browser."); return; }
       try {
         const acc = await eth.request({ method: "eth_requestAccounts" });
         try { await eth.request({ method: "wallet_switchEthereumChain", params: [{ chainId: RH.chainId }] }); }
@@ -742,8 +835,8 @@
       } catch (e) { toast(e.message || "EVM cancelled"); }
     }
     async function connectSol() {
-      const sol = window.solana || window.phantom?.solana;
-      if (!sol) { toast("Install Phantom."); return; }
+      const sol = solProvider();
+      if (!sol) { toast("No Solana wallet here. Open Phantom / Solflare in-app browser, or use Open Jupiter on Swap."); return; }
       try {
         const res = await sol.connect();
         solAddr = (res.publicKey || sol.publicKey).toString();
@@ -756,8 +849,6 @@
     }
     $("btnEvm").onclick = connectEvm;
     $("btnSolW").onclick = connectSol;
-    if ($("goPons")) $("goPons").addEventListener("click", () => { connectEvm(); });
-    if ($("goPump")) $("goPump").addEventListener("click", () => { connectSol(); });
 
     let jupReady = false;
     function initSwap() {
@@ -766,6 +857,8 @@
           window.Jupiter.init({
             displayMode: "integrated",
             integratedTargetId: "jupiter-plugin",
+            defaultExplorer: "Solscan",
+            enableWalletPassthrough: false,
             branding: { name: "DualLaunch" },
             containerStyles: { width: "100%", borderRadius: "16px", background: "transparent" }
           });
@@ -799,28 +892,47 @@
       });
       return Object.values(map);
     }
+    function applyCoins(extra) {
+      const mine = JSON.parse(localStorage.getItem("dl-mine") || "[]");
+      const incoming = uniqCoins(mine.concat(coins).concat(extra || []));
+      const known = new Set(coins.map((c) => c.id));
+      const fresh = incoming.filter((c) => !known.has(c.id));
+      coins = incoming;
+      trackLive(coins);
+      const big = fresh.filter((c) => Number(c.mcap||0) >= 15000);
+      if (big.length && known.size) {
+        toast(big.length + " new coin(s) above $15k");
+        try { const ctx = new (window.AudioContext||window.webkitAudioContext)(); const o=ctx.createOscillator(); const g=ctx.createGain(); o.connect(g); g.connect(ctx.destination); o.frequency.value=880; g.gain.value=0.04; o.start(); o.stop(ctx.currentTime+0.12); } catch(e){}
+      } else if (fresh.length && known.size) toast(fresh.length + " new coin(s) live");
+      if (alertsOn()) {
+        incoming.forEach((c) => {
+          if (isPinned(c.id) && !graduated(c) && pct(c) >= 70 && pct(c) < 100) {
+            const k = "a70-"+c.id;
+            if (!sessionStorage.getItem(k)) { sessionStorage.setItem(k,"1"); toast(c.symbol + " is above 70% curve"); }
+          }
+        });
+      }
+      if ($("statCount")) $("statCount").textContent = String(coins.length);
+      if ($("statRh")) $("statRh").textContent = String(coins.filter((c)=>c.chain==="rh").length);
+      if ($("statSol")) $("statSol").textContent = String(coins.filter((c)=>c.chain==="sol").length);
+      paintWallet();
+      const status = $("feedStatus");
+      if (status) status.innerHTML = '<span class="live-dot"></span>' + coins.length + " live · " + new Date().toLocaleTimeString();
+      if (document.getElementById("view-board").classList.contains("on")) renderBoard();
+    }
+    async function pull(src) {
+      const r = await fetch("/api/feed?src=" + src + "&t=" + Date.now());
+      const data = await r.json();
+      if (!data.ok) throw new Error(data.error || src);
+      applyCoins(data.coins || []);
+    }
     async function loadFeed() {
       if (feedBusy) return;
       feedBusy = true;
-      const status = $("feedStatus");
       try {
-        const r = await fetch("/api/feed?t=" + Date.now());
-        const data = await r.json();
-        if (!data.ok) throw new Error(data.error || "feed");
-        const mine = JSON.parse(localStorage.getItem("dl-mine") || "[]");
-        const incoming = uniqCoins(mine.concat(data.coins || []));
-        const known = new Set(coins.map((c) => c.id));
-        const fresh = incoming.filter((c) => !known.has(c.id));
-        coins = incoming;
-        trackLive(coins);
-        if (fresh.length && known.size) toast(fresh.length + " new coin(s) live");
-        if ($("statCount")) $("statCount").textContent = String(coins.length);
-        if ($("statRh")) $("statRh").textContent = String(coins.filter((c)=>c.chain==="rh").length);
-        if ($("statSol")) $("statSol").textContent = String(coins.filter((c)=>c.chain==="sol").length);
-        paintWallet();
-        if (status) status.innerHTML = '<span class="live-dot"></span>' + coins.length + " live · " + new Date().toLocaleTimeString("nl-NL");
-        if (document.getElementById("view-board").classList.contains("on")) renderBoard();
+        await Promise.all([pull("pons").catch(() => null), pull("pump").catch(() => null)]);
       } catch (e) {
+        const status = $("feedStatus");
         if (status) status.textContent = "Feed failed to load — check api/feed.js on Vercel.";
       } finally {
         feedBusy = false;
@@ -833,8 +945,72 @@
       liveTimer = setInterval(loadFeed, ms);
     }
     document.addEventListener("visibilitychange", startLive);
+
+    function toggleAlert70() {
+      const on = !alertsOn();
+      localStorage.setItem("dl-alert70", on ? "1" : "0");
+      toast(on ? "70% curve alerts on for pinned coins" : "Curve alerts off");
+    }
+    async function submitToken() {
+      const addr = (($("subAddr")&&$("subAddr").value)||"").trim();
+      const ch = ($("subChain")&&$("subChain").value)||"sol";
+      const st = $("subStatus");
+      if (!addr) { if (st) st.textContent = "Paste a contract."; return; }
+      if (st) st.textContent = "Looking up DexScreener…";
+      try {
+        const r = await fetch("https://api.dexscreener.com/latest/dex/tokens/" + encodeURIComponent(addr));
+        const j = await r.json();
+        const pair = (j.pairs||[])[0];
+        const c = {
+          id: (ch==="rh"?"rh-":"sol-") + addr.toLowerCase(),
+          name: (pair && (pair.baseToken||{}).name) || "Listed token",
+          symbol: (pair && (pair.baseToken||{}).symbol) || "?",
+          chain: ch,
+          raised: 0, goal: ch==="rh"?4.2:85,
+          vol: pair && pair.marketCap ? "$"+Math.round(pair.marketCap).toLocaleString() : "—",
+          mcap: Number((pair&&pair.marketCap)||0),
+          created: Date.now(),
+          logo: (pair && pair.info && pair.info.imageUrl) || "",
+          address: addr,
+          listed: true,
+          link: pair && pair.url ? pair.url : ("https://dexscreener.com/"+(ch==="rh"?"robinhood":"solana")+"/"+addr),
+          chart: pair && pair.url ? pair.url : ""
+        };
+        const arr = listed().filter((x)=>x.id!==c.id);
+        arr.unshift(c);
+        setListed(arr.slice(0,80));
+        coins = uniqCoins([c].concat(coins));
+        if (st) st.textContent = pair ? "Listed · pair found." : "Saved. No DexScreener pair yet.";
+        toast("Added to Listed");
+        show("listed");
+      } catch (e) {
+        if (st) st.textContent = "Lookup failed.";
+      }
+    }
+    function renderListed() {
+      const box = $("listedBoard");
+      if (!box) return;
+      const rows = listed();
+      if (!rows.length) { box.innerHTML = "<div class='lede'>Nothing listed yet. Use Submit.</div>"; return; }
+      box.innerHTML = rows.map((c)=>tileHtml(c)).join("");
+    }
+    function bootHash() {
+      const h = (location.hash||"").replace(/^#/,"");
+      if (h.startsWith("coin=")) show("coin", decodeURIComponent(h.slice(5)));
+      else if (h==="listed") show("listed");
+      else if (h==="submit") show("submit");
+    }
+    if ($("q")) $("q").addEventListener("keydown", (e) => {
+      if (e.key !== "Enter") return;
+      const q = ($("q").value||"").trim();
+      if (!q) return;
+      const hit = coins.find((c)=> (c.address||"").toLowerCase()===q.toLowerCase() || (c.symbol||"").toLowerCase()===q.toLowerCase());
+      if (hit) show("coin", hit.id);
+    });
     loadFeed();
     startLive();
+    bootHash();
+    window.addEventListener("hashchange", bootHash);
   </script>
 </body>
 </html>
