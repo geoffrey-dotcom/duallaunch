@@ -442,11 +442,13 @@
     }
     function liveCandle(c) {
       const addr = c.address || "";
-      if (c.chain === "sol" && addr) {
+      if (!addr) return embedChart(c);
+      if (c.chain === "sol") {
         return "https://embed.birdeye.so/tv-widget/" + encodeURIComponent(addr) +
           "?chain=solana&viewMode=pair&chartInterval=15&chartType=Candle&theme=dark&chartLeftToolbar=hide";
       }
-      return embedChart(c);
+      return "https://www.geckoterminal.com/robinhood/tokens/" + encodeURIComponent(addr) +
+        "?embed=1&info=0&swaps=0&light_chart=0&resolution=15m";
     }
     async function resolveDexPair(c) {
       if (!c.address) return embedChart(c);
@@ -649,7 +651,7 @@
       const g = graduated(c);
       const pad = c.link || (c.chain === "rh" ? PONS_CREATE : PUMP_CREATE);
       const chart = c.chart || pad;
-      const dex = (c.chain === "sol") ? liveCandle(c) : await resolveDexPair(c);
+      const dex = liveCandle(c);
       $("view-coin").innerHTML = `
         <button class="btn btn-ghost" onclick="show('board')" style="margin-bottom:16px">← Board</button>
         <div class="detail">
@@ -689,7 +691,7 @@
               <button class="btn btn-ghost" type="button" onclick="togglePin('${esc(c.id)}')">Watchlist</button>
               <button class="btn btn-ghost" type="button" onclick="shareCoin('${esc(c.id)}')">Copy link</button>
             </div>
-            <p class="warn">${c.chain === "rh" ? "Chart is DexScreener. Empty chart = no pair yet. Open coin goes to PONS." : "Solana chart is Birdeye candles (not DexScreener). No pair = empty. Open DexScreener still works."}</p>
+            <p class="warn">${c.chain === "rh" ? "PONS chart is GeckoTerminal. Empty = no pool yet. Open DexScreener still works." : "Solana chart is Birdeye candles (not DexScreener). No pair = empty. Open DexScreener still works."}</p>
           </div>
         </div>`;
       setTimeout(() => {
