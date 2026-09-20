@@ -65,7 +65,7 @@ module.exports = async function handler(req, res) {
       res.status(200).json({ ok: true, version: "v3", hasToken: true, ping: sent });
       return;
     }
-    res.status(200).json({ ok: true, version: "v3", bot: "DualLaunch", hasToken: !!TOKEN });
+    res.status(200).json({ ok: true, version: "v4", bot: "DualLaunch", hasToken: !!TOKEN, last: globalThis.__dlLast || null });
     return;
   }
   if (!TOKEN) {
@@ -73,6 +73,7 @@ module.exports = async function handler(req, res) {
     return;
   }
   const update = readBody(req);
+  globalThis.__dlLast = { at: Date.now(), keys: Object.keys(update || {}), text: (update.message || {}).text || (update.channel_post || {}).text || null };
   const msg = update.message || update.edited_message || update.channel_post;
   if (!msg || !msg.text) {
     res.status(200).json({ ok: true });
@@ -82,21 +83,39 @@ module.exports = async function handler(req, res) {
   const text = String(msg.text || "").replace(/@\w+/g, "").trim();
   const low = text.toLowerCase();
 
+  function tgLink(raw) {
+    const s = String(raw || "").trim();
+    if (/^https:\/\/t\.me\/[A-Za-z0-9_]+/i.test(s)) return s;
+    return "";
+  }
+
   try {
-    if (low.startsWith("/start") || low.startsWith("/help")) {
-      await tg("sendMessage", {
+    if (low.startsWith("/start") || low.startsWith("/help") || low.startsWith("/rooms")) {
+      const sent = await tg("sendMessage", {
         chat_id: chat,
         text:
-          "DualLaunch alerts\nPONS + pump.fun. We don't mint tokens. Not financial advice.\n\n" +
-          "/new — latest above $" + MIN_MCAP.toLocaleString("en-US") + " MC\n" +
-          "/pons — PONS only\n" +
-          "/pump — pump.fun only\n" +
-          SITE,
-        reply_markup: {
-          keyboard: [["/new", "/pons"], ["/pump", "/help"]],
-          resize_keyboard: true
-        }
+          "DualLaunch is on.\n\n" +
+          "/rooms — PONS / pump.fun / chat links\n" +
+          "/new /pons /pump — coins above $" + MIN_MCAP.toLocaleString("en-US") + " MC\n" +
+          SITE + "\n\nNot financial advice. We don't mint tokens."
       });
+      const rows = [];
+      const pons = tgLink(process.env.TG_PONS_LINK);
+      const pump = tgLink(process.env.TG_PUMP_LINK);
+      const chatL = tgLink(process.env.TG_CHAT_LINK);
+      if (pons) rows.push([{ text: "PONS channel", url: pons }]);
+      if (pump) rows.push([{ text: "pump.fun channel", url: pump }]);
+      if (chatL) rows.push([{ text: "Community chat", url: chatL }]);
+      rows.push([{ text: "Open DualLaunch", url: "https://www.duallaunch.xyz" }]);
+      if (sent && sent.ok) {
+        await tg("sendMessage", {
+          chat_id: chat,
+          text: "Rooms:",
+          reply_markup: { inline_keyboard: rows }
+        });
+      } else {
+        await tg("sendMessage", { chat_id: chat, text: "Bot got /start but Telegram rejected the first reply." });
+      }
     } else if (low.startsWith("/pons") || low.startsWith("/pump") || low.startsWith("/new")) {
       const src = low.startsWith("/pons") ? "pons" : low.startsWith("/pump") ? "pump" : "all";
       const coins = await feed(src);
