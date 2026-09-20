@@ -27,10 +27,7 @@
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      background:
-        radial-gradient(700px 280px at 12% -8%, rgba(184,255,58,.12), transparent 50%),
-        radial-gradient(640px 260px at 100% 0%, rgba(123,77,255,.16), transparent 46%),
-        var(--bg);
+      background: var(--bg);
       color: var(--text);
       font-family: Manrope, system-ui, sans-serif;
       letter-spacing: -.01em;
@@ -56,26 +53,33 @@
     .btn-lime { background: var(--lime); color: #07070c; width: 100%; }
     .btn-violet { background: #171328; color: #cbb8ff; border: 1px solid #3d2d6e; width: 100%; }
     .wallets { margin-top: auto; display: flex; flex-direction: column; gap: 8px; }
-    main { flex: 1; padding: 48px 48px 80px; max-width: 1180px; }
+    main { flex: 1; padding: 28px 28px 72px; max-width: none; }
     .kicker { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--dim); letter-spacing: .16em; text-transform: uppercase; }
-    h1 { font-size: clamp(28px, 3.6vw, 40px); line-height: 1.15; letter-spacing: -.03em; margin: 16px 0 14px; font-weight: 700; }
-    .lede { color: var(--dim); max-width: 640px; line-height: 1.65; margin-bottom: 28px; }
+    h1 { font-size: clamp(22px, 2.4vw, 28px); line-height: 1.2; letter-spacing: -.03em; margin: 8px 0 10px; font-weight: 700; }
+    .lede { color: var(--dim); max-width: 720px; line-height: 1.5; margin-bottom: 16px; font-size: 14px; }
     .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin: 28px 0 20px; }
     .toolbar button {
       background: #101018; border: 1px solid var(--line); color: var(--dim);
       padding: 8px 12px; border-radius: 999px; cursor: pointer; font-family: inherit; font-size: 13px;
     }
     .toolbar button.on { border-color: var(--lime); color: var(--lime); background: #12121a; }
-    .table { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
-    .tile {
-      display: flex; flex-direction: column; gap: 10px;
-      text-align: left; width: 100%; cursor: pointer; font-family: inherit; color: inherit;
-      background: linear-gradient(180deg,#141422,#0e0e16); border: 1px solid var(--line); border-radius: 16px; padding: 16px;
+    .table { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: #0c0c12; }
+    .board-head, .tile {
+      display: grid; grid-template-columns: 36px minmax(180px,1.6fr) 72px 100px 72px minmax(120px,1fr) 140px;
+      gap: 8px; align-items: center; width: 100%;
     }
-    .tile:hover { border-color: #3a3a52; }
+    .board-head {
+      padding: 8px 12px; font-family: "IBM Plex Mono", monospace; font-size: 10px; color: var(--dim);
+      text-transform: uppercase; letter-spacing: .08em; background: #0a0a10; border-bottom: 1px solid var(--line);
+    }
+    .tile {
+      text-align: left; cursor: pointer; font-family: inherit; color: inherit;
+      background: transparent; border: 0; border-bottom: 1px solid #1a1a24; padding: 10px 12px; border-radius: 0;
+    }
+    .tile:hover { background: #12121a; }
     .tile-top { display: flex; gap: 12px; align-items: flex-start; }
     .ident { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1; }
-    .av { width: 52px; height: 52px; border-radius: 14px; object-fit: cover; background: #1a1a26; flex: 0 0 auto; }
+    .av { width: 28px; height: 28px; border-radius: 8px; object-fit: cover; background: #1a1a26; flex: 0 0 auto; }
     .av-fallback { display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; color:var(--lime); }
     .spark { width: 100%; height: 72px; display: block; border-radius: 8px; background:#0a0a12; }
     .chart-img { width:100%; height:88px; object-fit:cover; border-radius:8px; background:#0a0a12; display:block; }
@@ -110,7 +114,7 @@
       position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
       background: #12121a; border: 1px solid var(--line); padding: 11px 14px; border-radius: 12px; display: none; z-index: 40;
     }
-    .stats-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin: 8px 0 24px; }
+    .stats-strip { margin-bottom: 8px;  display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin: 8px 0 24px; }
     .sbox { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px 18px; }
         .swap-shell {
       width: min(420px, 100%); min-height: 540px; margin-top: 8px;
@@ -159,7 +163,10 @@
       main { padding: 20px 14px 72px; max-width: none; }
       h1 { font-size: 26px; margin: 10px 0 10px; }
       .lede { margin-bottom: 16px; font-size: 14px; }
-      .hero, .detail, .stats, .split, .table, .stats-strip, .launch-grid { grid-template-columns: 1fr; }
+      .hero, .detail, .stats, .split, .stats-strip, .launch-grid { grid-template-columns: 1fr; }
+      .board-head { display:none; }
+      .tile { grid-template-columns: 32px 1fr 72px; }
+      .tile > :nth-child(3), .tile > :nth-child(6) { display:none; }
       .table { gap: 12px; }
       .toolbar { gap: 6px; margin: 12px 0 10px; overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
       .toolbar button { white-space: nowrap; flex: 0 0 auto; }
@@ -228,6 +235,7 @@
         <button onclick="setAge(this,'24h')">24h</button>
         <button onclick="setAge(this,'7d')">7d</button>
       </div>
+            <div class="board-head"><span></span><span>Token</span><span>Age</span><span>MCap</span><span>%</span><span>Curve</span><span></span></div>
       <div class="table" id="board"></div>
       <button class="btn btn-ghost" id="moreBtn" type="button" onclick="moreBoard()" style="margin-top:16px;display:none">Load more</button>
     </section>
@@ -263,7 +271,14 @@
         <button id="swapRhBtn" type="button">Robinhood / PONS</button>
       </div>
       <div id="jupBox" class="swap-shell">
+        <div class="split" style="margin-bottom:12px;max-width:640px">
+          <button class="btn btn-ghost" type="button" onclick="connectSolNamed('phantom')">Phantom</button>
+          <button class="btn btn-ghost" type="button" onclick="connectSolNamed('solflare')">Solflare</button>
+          <button class="btn btn-ghost" type="button" onclick="connectSolNamed('backpack')">Backpack</button>
+        </div>
         <div id="jupiter-plugin"></div>
+        <p class="tick" style="margin-top:10px">Plugin uses the wallet in this browser. If Connect fails, open Jupiter.</p>
+        <a class="btn btn-lime" href="https://jup.ag/swap" target="_blank" rel="noopener" style="margin-top:10px">Open Jupiter</a>
       </div>
       <div id="rhSwap" class="panel" style="max-width:480px;display:none">
         <p class="tick">Paste a PONS token address, or open a coin on the board and use Open coin.</p>
@@ -425,6 +440,14 @@
       const chain = c.chain === "rh" ? "robinhood" : "solana";
       return embedify(c.chart || ("https://dexscreener.com/" + chain + "/" + (c.address || "")));
     }
+    function liveCandle(c) {
+      const addr = c.address || "";
+      if (c.chain === "sol" && addr) {
+        return "https://embed.birdeye.so/tv-widget/" + encodeURIComponent(addr) +
+          "?chain=solana&viewMode=pair&chartInterval=15&chartType=Candle&theme=dark&chartLeftToolbar=hide";
+      }
+      return embedChart(c);
+    }
     async function resolveDexPair(c) {
       if (!c.address) return embedChart(c);
       try {
@@ -564,21 +587,13 @@
     function tileHtml(c) {
       const ch = chgBits(c);
       return `<button class="tile" data-id="${esc(c.id)}" onclick="show('coin','${esc(c.id)}')">
-          <div class="tile-top">
-            <div class="ident">${av(c)}<div>
-              <div class="name">${esc(c.name)}</div>
-              <div class="tick js-age">$${esc(c.symbol)} · ${c.chain === "rh" ? "PONS" : "pump.fun"} · ${age(c.created)}</div>
-            </div></div>
-            <div class="chg ${ch.cls} js-chg">${ch.txt}</div>
-          </div>
-          <div class="mc js-mc">${esc(c.vol || "—")} mcap</div>
-          <div class="bar"><i class="js-bar" style="width:${pct(c)}%"></i></div>
-          <div class="pct js-pct">${pctLine(c)}</div>
-          <div class="slinks">
-            <button class="sbtn" type="button" onclick="togglePin('${esc(c.id)}',event)">${isPinned(c.id)?"Unpin":"Pin"}</button>
-            <button class="sbtn" type="button" onclick="shareCoin('${esc(c.id)}',event)">Share</button>
-          </div>
-          ${socialBtns(c, true)}
+          <span><button class="sbtn" type="button" onclick="togglePin('${esc(c.id)}',event)">${isPinned(c.id)?"★":"☆"}</button></span>
+          <span class="ident">${av(c)}<span><div class="name">${esc(c.name)}</div><div class="tick">$${esc(c.symbol)} · ${c.chain === "rh" ? "PONS" : "PUMP"}</div></span></span>
+          <span class="tick js-age">${age(c.created)}</span>
+          <span class="mc js-mc">${esc(c.vol || "—")}</span>
+          <span class="chg ${ch.cls} js-chg">${ch.txt}</span>
+          <span><div class="bar"><i class="js-bar" style="width:${pct(c)}%"></i></div><div class="pct js-pct">${pctLine(c)}</div></span>
+          <span class="slinks"><button class="sbtn" type="button" onclick="shareCoin('${esc(c.id)}',event)">Share</button>${socialBtns(c, true)}</span>
         </button>`;
     }
     function patchTile(el, c) {
@@ -634,7 +649,7 @@
       const g = graduated(c);
       const pad = c.link || (c.chain === "rh" ? PONS_CREATE : PUMP_CREATE);
       const chart = c.chart || pad;
-      const dex = await resolveDexPair(c);
+      const dex = (c.chain === "sol") ? liveCandle(c) : await resolveDexPair(c);
       $("view-coin").innerHTML = `
         <button class="btn btn-ghost" onclick="show('board')" style="margin-bottom:16px">← Board</button>
         <div class="detail">
@@ -674,7 +689,7 @@
               <button class="btn btn-ghost" type="button" onclick="togglePin('${esc(c.id)}')">Watchlist</button>
               <button class="btn btn-ghost" type="button" onclick="shareCoin('${esc(c.id)}')">Copy link</button>
             </div>
-            <p class="warn">${c.chain === "rh" ? "Chart is DexScreener. Empty chart = no pair yet. Open coin goes to PONS." : "Chart is DexScreener. Empty chart = no pair yet. Open coin goes to pump.fun."}</p>
+            <p class="warn">${c.chain === "rh" ? "Chart is DexScreener. Empty chart = no pair yet. Open coin goes to PONS." : "Solana chart is Birdeye candles (not DexScreener). No pair = empty. Open DexScreener still works."}</p>
           </div>
         </div>`;
       setTimeout(() => {
@@ -845,9 +860,33 @@
         show('wallet');
       } catch (e) { toast(e.message || "EVM cancelled"); }
     }
+    function namedSol(name) {
+      const w = window;
+      if (name === "phantom") return (w.phantom && w.phantom.solana) || (w.solana && w.solana.isPhantom ? w.solana : null);
+      if (name === "solflare") return w.solflare || null;
+      if (name === "backpack") return w.backpack || null;
+      return solProvider();
+    }
+    async function connectSolNamed(name) {
+      const sol = namedSol(name);
+      if (!sol) {
+        const store = { phantom: "https://phantom.app", solflare: "https://solflare.com", backpack: "https://backpack.app" };
+        toast("Install " + name + " or open DualLaunch inside that wallet browser.");
+        if (store[name]) window.open(store[name], "_blank", "noopener");
+        return;
+      }
+      try {
+        const res = await sol.connect();
+        solAddr = (res.publicKey || sol.publicKey).toString();
+        $("btnSolW").textContent = short(solAddr) + " · SOL";
+        paintWallet();
+        refreshSolBal();
+        toast(name + " connected.");
+      } catch (e) { toast(e.message || "Cancelled"); }
+    }
     async function connectSol() {
       const sol = solProvider();
-      if (!sol) { toast("No Solana wallet here. Open Phantom / Solflare in-app browser, or use Open Jupiter on Swap."); return; }
+      if (!sol) { toast("No Solana wallet here. Use Phantom / Solflare / Backpack buttons on Swap, or Open Jupiter."); return; }
       try {
         const res = await sol.connect();
         solAddr = (res.publicKey || sol.publicKey).toString();
