@@ -31,11 +31,15 @@ function fmtUsd(n) {
   return "$" + Math.round(v);
 }
 
-function photoOf(c) {
+function photosOf(c) {
   const a = c.address || "";
-  if (!a) return "";
-  if (c.chain === "sol") return "https://dd.dexscreener.com/ds-data/tokens/solana/" + a + "/header.png";
-  return c.logo || "";
+  const out = [];
+  if (c.logo && /^https?:\/\//i.test(c.logo)) out.push(c.logo);
+  if (a && c.chain === "sol") {
+    out.push("https://dd.dexscreener.com/ds-data/tokens/solana/" + a + "/header.png");
+    out.push("https://dd.dexscreener.com/ds-data/tokens/solana/" + a + ".png");
+  }
+  return out;
 }
 
 function payload(c) {
@@ -50,13 +54,14 @@ function payload(c) {
     : "https://solscan.io/token/" + (c.address || "");
   const ageMin = c.created ? Math.max(0, Math.round((Date.now() - Number(c.created)) / 60000)) : null;
   const caption =
-    "<b>" + escapeHtml(c.symbol || "?") + "</b> · " + chain + "\n" +
+    "🚀 <b>" + escapeHtml(c.symbol || "?") + "</b>  ·  " + chain + "\n" +
     escapeHtml(c.name || "") + "\n\n" +
-    "MC " + fmtUsd(c.mcap) + " · " + pct.toFixed(0) + "% curve\n" +
-    "Vol " + escapeHtml(c.vol || "—") +
-    (ageMin != null ? " · " + ageMin + "m" : "") + "\n" +
-    "<code>" + escapeHtml(c.address || "") + "</code>\n\n" +
-    "Not financial advice.";
+    "💰 MC: <b>" + fmtUsd(c.mcap) + "</b>\n" +
+    "📈 Curve: <b>" + pct.toFixed(0) + "%</b>\n" +
+    "📊 Vol: " + escapeHtml(c.vol || "—") + "\n" +
+    (ageMin != null ? "⏱ Age: " + ageMin + "m\n" : "") +
+    "🔗 CA\n<code>" + escapeHtml(c.address || "") + "</code>\n\n" +
+    "<i>Not financial advice. DualLaunch does not mint tokens.</i>";
   return {
     caption,
     parse_mode: "HTML",
@@ -99,14 +104,12 @@ module.exports = async function handler(req, res) {
         const extra = payload(c);
         if (thread) extra.message_thread_id = Number(thread);
         extra.chat_id = chat;
-        const pic = photoOf(c);
-        if (pic) {
+        let sent = false;
+        for (const pic of photosOf(c)) {
           const r = await tg("sendPhoto", Object.assign({ photo: pic }, extra));
-          if (!r.ok) {
-            extra.text = extra.caption;
-            await tg("sendMessage", extra);
-          }
-        } else {
+          if (r && r.ok) { sent = true; break; }
+        }
+        if (!sent) {
           extra.text = extra.caption;
           await tg("sendMessage", extra);
         }
