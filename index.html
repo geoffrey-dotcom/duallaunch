@@ -73,8 +73,8 @@
       text-transform: uppercase; letter-spacing: .08em; background: #0a0a10; border-bottom: 1px solid var(--line);
     }
     .tile {
-      text-align: left; cursor: pointer; font-family: inherit; color: inherit;
-      background: transparent; border: 0; border-bottom: 1px solid #1a1a24; padding: 10px 12px; border-radius: 0;
+      text-align: left; cursor: pointer; font-family: inherit; color: var(--text);
+      background: #0e0e16; border: 0; border-bottom: 1px solid #1a1a24; padding: 12px; border-radius: 0; min-height: 56px;
     }
     .tile:hover { background: #12121a; }
     .tile-top { display: flex; gap: 12px; align-items: flex-start; }
@@ -85,7 +85,7 @@
     .chart-img { width:100%; height:88px; object-fit:cover; border-radius:8px; background:#0a0a12; display:block; }
     .chg { font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 600; white-space: nowrap; }
     .chg.up { color: var(--lime); } .chg.down { color: #ff6b9a; }
-    .name { font-weight: 750; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .name { font-weight: 750; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #f3f4f8; }
     .tick { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--dim); }
     .mc { font-family: "IBM Plex Mono", monospace; font-weight: 500; }
     .bar { height: 6px; background: #1c1c28; border-radius: 99px; overflow: hidden; }
@@ -165,8 +165,8 @@
       .lede { margin-bottom: 16px; font-size: 14px; }
       .hero, .detail, .stats, .split, .stats-strip, .launch-grid { grid-template-columns: 1fr; }
       .board-head { display:none; }
-      .tile { grid-template-columns: 32px 1fr 72px; }
-      .tile > :nth-child(3), .tile > :nth-child(6) { display:none; }
+      .tile { grid-template-columns: 28px 1fr 80px; }
+      .tile > :nth-child(6), .tile > :nth-child(7) { display:none; }
       .table { gap: 12px; }
       .toolbar { gap: 6px; margin: 12px 0 10px; overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
       .toolbar button { white-space: nowrap; flex: 0 0 auto; }
@@ -586,15 +586,15 @@
     }
     function tileHtml(c) {
       const ch = chgBits(c);
-      return `<button class="tile" data-id="${esc(c.id)}" onclick="show('coin','${esc(c.id)}')">
-          <span><button class="sbtn" type="button" onclick="togglePin('${esc(c.id)}',event)">${isPinned(c.id)?"★":"☆"}</button></span>
+      return `<div class="tile" data-id="${esc(c.id)}" role="button" tabindex="0" onclick="show('coin','${esc(c.id)}')">
+          <span class="sbtn" onclick="togglePin('${esc(c.id)}',event)">${isPinned(c.id)?"★":"☆"}</span>
           <span class="ident">${av(c)}<span><div class="name">${esc(c.name)}</div><div class="tick">$${esc(c.symbol)} · ${c.chain === "rh" ? "PONS" : "PUMP"}</div></span></span>
           <span class="tick js-age">${age(c.created)}</span>
           <span class="mc js-mc">${esc(c.vol || "—")}</span>
           <span class="chg ${ch.cls} js-chg">${ch.txt}</span>
           <span><div class="bar"><i class="js-bar" style="width:${pct(c)}%"></i></div><div class="pct js-pct">${pctLine(c)}</div></span>
-          <span class="slinks"><button class="sbtn" type="button" onclick="shareCoin('${esc(c.id)}',event)">Share</button>${socialBtns(c, true)}</span>
-        </button>`;
+          <span class="slinks"><span class="sbtn" onclick="shareCoin('${esc(c.id)}',event)">Share</span>${socialBtns(c, true)}</span>
+        </div>`;
     }
     function patchTile(el, c) {
       const ch = chgBits(c);
