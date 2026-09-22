@@ -19,6 +19,7 @@ module.exports = async function handler(req, res) {
       wantPons ? fetch(ponsExplore("newest", 1), { headers: hdr }) : null,
       wantPons ? fetch(ponsExplore("newest", 2), { headers: hdr }) : null,
       wantPons ? fetch(ponsExplore("newest", 3), { headers: hdr }) : null,
+      wantPons ? fetch(ponsExplore("newest", 4), { headers: hdr }) : null,
       wantPons ? fetch(ponsExplore("recentBuys", 1), { headers: hdr }) : null,
       wantPons ? fetch(ponsExplore("recentBuys", 2), { headers: hdr }) : null,
       wantPons ? fetch(ponsExplore("marketCap", 1), { headers: hdr }) : null,
@@ -30,7 +31,7 @@ module.exports = async function handler(req, res) {
       wantPump ? fetch(pumpQs("market_cap", 0) + "&complete=false", { headers: hdr }) : null
     ];
     const settled = await Promise.all(jobs.map((p) => (p ? p.catch(() => null) : null)));
-    const [p1,p2,p3,pb1,pb2,pmc, pn0,pn50,pn100, ph0,ph50, pmc2] = settled;
+    const [p1,p2,p3,p4,pb1,pb2,pmc, pn0,pn50,pn100, ph0,ph50, pmc2] = settled;
 
     const flattenPons = (raw) => {
       if (!raw) return [];
@@ -45,6 +46,7 @@ module.exports = async function handler(req, res) {
       .concat(flattenPons(await read(p1)))
       .concat(flattenPons(await read(p2)))
       .concat(flattenPons(await read(p3)))
+      .concat(flattenPons(await read(p4)))
       .concat(flattenPons(await read(pb1)))
       .concat(flattenPons(await read(pb2)))
       .concat(flattenPons(await read(pmc)));
@@ -60,22 +62,29 @@ module.exports = async function handler(req, res) {
     const ipfs = (u) => {
       if (!u) return "";
       const s = String(u);
+      const cid = (s.match(/ipfs\/([^/?#]+)/) || s.match(/^ipfs:\/\/([^/?#]+)/) || [])[1];
+      if (cid) return "https://w3s.link/ipfs/" + cid;
       if (s.startsWith("ipfs://")) return "https://w3s.link/ipfs/" + s.slice(7).replace(/^ipfs\//, "");
       return s;
     };
+    const ponsLogo = (t) => ipfs(t.logo || t.image || t.imageUrl || t.img || (t.metadata && (t.metadata.image || t.metadata.logo)) || "");
 
     const mapPons = (t) => {
       const apiPct = t.graduationProgressPct;
       const goal = Number(t.graduationThresholdEth) || 4.2;
       let raised = Number(t.pairedPrincipalEth);
       let pct = Number(apiPct);
-      const graduated = !!t.graduated || pct >= 100;
-      if (!Number.isFinite(raised) || raised <= 0) {
-        if (Number.isFinite(pct) && pct > 0) raised = (pct / 100) * goal;
-        else if (t.marketCapUsd) raised = Math.min(goal * 0.99, (Number(t.marketCapUsd) / 3500) * goal);
-        else raised = 0;
+      const graduated = !!t.graduated || (!!t.complete) || pct >= 100;
+      if (!Number.isFinite(raised) || raised < 0) raised = 0;
+      if (Number.isFinite(pct) && pct > 0 && raised <= 0) raised = (pct / 100) * goal;
+      if (graduated) {
+        raised = goal;
+        pct = 100;
+      } else if (Number.isFinite(pct)) {
+        raised = Math.min(goal * 0.99, (pct / 100) * goal);
+      } else {
+        pct = goal ? Math.min(99, (raised / goal) * 100) : 0;
       }
-      if (!Number.isFinite(pct)) pct = graduated ? 100 : Math.min(99, (raised / goal) * 100);
       const addr = t.token || "";
       const launched = new Date(t.launchedAt || Date.now()).getTime();
       return {
@@ -89,7 +98,7 @@ module.exports = async function handler(req, res) {
         mcap: Number(t.marketCapUsd || 0),
         created: launched,
         desc: t.description || "",
-        logo: ipfs(t.logo),
+        logo: ponsLogo(t),
         address: addr,
         twitter: t.twitter || (t.socials && t.socials.twitter) || "",
         telegram: t.telegram || (t.socials && t.socials.telegram) || "",
