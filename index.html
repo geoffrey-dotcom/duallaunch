@@ -184,7 +184,7 @@
   <aside class="side">
     <div class="brand" onclick="show('board')"><img src="logo.jpg" alt="" /> DualLaunch</div>
     <div class="nav-links">
-      <button id="nav-board" class="on" onclick="show('board')">Board</button>
+      <button id="nav-board" class="on" onclick="show('board')">Board <span id="pinCount" class="tick"></span></button>
       <button id="nav-launch" onclick="show('launch')">Launch</button>
       <button id="nav-wallet" onclick="show('wallet')">Wallet</button>
       <button id="nav-swap" onclick="show('swap')">Swap</button>
@@ -236,9 +236,19 @@
         <button onclick="setAge(this,'24h')">24h</button>
         <button onclick="setAge(this,'7d')">7d</button>
       </div>
-            <div class="board-head"><span></span><span>Token</span><span>Age</span><span>MCap</span><span>%</span><span>Curve</span><span></span></div>
-      <div class="table" id="board"></div>
-      <button class="btn btn-ghost" id="moreBtn" type="button" onclick="moreBoard()" style="margin-top:16px;display:none">Load more</button>
+      <div id="singleBoard">
+        <div class="board-head"><span></span><span>Token</span><span>Age</span><span>MCap</span><span>%</span><span>Curve</span><span></span></div>
+        <div class="table" id="board"></div>
+        <button class="btn btn-ghost" id="moreBtn" type="button" onclick="moreBoard()" style="margin-top:16px;display:none">Load more</button>
+      </div>
+      <div id="dualBoard" style="display:none">
+        <p class="kicker" style="margin:18px 0 8px">Newest</p>
+        <div class="board-head"><span></span><span>Token</span><span>Age</span><span>MCap</span><span>%</span><span>Curve</span><span></span></div>
+        <div class="table" id="boardNew"></div>
+        <p class="kicker" style="margin:22px 0 8px">MC $15k+</p>
+        <div class="board-head"><span></span><span>Token</span><span>Age</span><span>MCap</span><span>%</span><span>Curve</span><span></span></div>
+        <div class="table" id="boardHot"></div>
+      </div>
     </section>
 
     <section id="view-launch" class="view">
@@ -475,6 +485,27 @@
         if (note) note.style.display = "block";
       }, 7000);
     }
+    function savePrefs() {
+      try { localStorage.setItem("dl-prefs", JSON.stringify({ filter, sortBy, ageBy })); } catch (e) {}
+      const n = $("pinCount");
+      if (n) n.textContent = pins().length ? "(" + pins().length + ")" : "";
+    }
+    function loadPrefs() {
+      try {
+        const p = JSON.parse(localStorage.getItem("dl-prefs") || "{}");
+        if (p.filter) filter = p.filter;
+        if (p.sortBy) sortBy = p.sortBy;
+        if (p.ageBy) ageBy = p.ageBy;
+      } catch (e) {}
+      document.querySelectorAll("#tb-chain button").forEach((b) => b.classList.toggle("on", b.getAttribute("data-f") === filter));
+      const sm = { new:"sort-new", trade:"sort-trade", mcap:"sort-mcap", vol:"sort-vol", prog:"sort-prog" };
+      document.querySelectorAll("#tb-sort button").forEach((b) => b.classList.remove("on"));
+      if ($(sm[sortBy])) $(sm[sortBy]).classList.add("on");
+      document.querySelectorAll("#tb-age button").forEach((b, i) => {
+        const map = ["all","24h","7d"];
+        b.classList.toggle("on", map[i] === ageBy);
+      });
+    }
     function filterBoard(btn, f) {
       filter = f;
       document.querySelectorAll("#tb-chain button").forEach((b) => b.classList.remove("on"));
@@ -613,7 +644,27 @@
       if (pl) pl.textContent = pctLine(c);
     }
     function moreBoard(){ boardLimit += 24; renderBoard(true); }
+    function fillTable(el, list) {
+      if (!el) return;
+      if (!list.length) {
+        el.innerHTML = "<div style='padding:20px' class='lede'>Nothing in this list right now.</div>";
+        return;
+      }
+      el.innerHTML = list.map(tileHtml).join("");
+    }
     function renderBoard(force) {
+      const dual = filter === "all";
+      if ($("dualBoard")) $("dualBoard").style.display = dual ? "" : "none";
+      if ($("singleBoard")) $("singleBoard").style.display = dual ? "none" : "";
+      savePrefs();
+      if (dual) {
+        const base = visible();
+        const newest = base.slice().sort((a,b)=>(b.created||0)-(a.created||0)).slice(0, 20);
+        const hot = base.filter((c)=>Number(c.mcap||0)>=15000).sort((a,b)=>(b.mcap||0)-(a.mcap||0)).slice(0, 20);
+        fillTable($("boardNew"), newest);
+        fillTable($("boardHot"), hot);
+        return;
+      }
       if (force && $("board")) $("board").dataset.ids = "";
       const all = visible();
       const list = all.slice(0, boardLimit);
@@ -1060,6 +1111,7 @@
       const hit = coins.find((c)=> (c.address||"").toLowerCase()===q.toLowerCase() || (c.symbol||"").toLowerCase()===q.toLowerCase());
       if (hit) show("coin", hit.id);
     });
+    loadPrefs();
     loadFeed();
     startLive();
     bootHash();
