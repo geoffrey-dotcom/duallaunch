@@ -350,8 +350,11 @@
         <input id="subName" placeholder="Token name" />
         <label>Ticker</label>
         <input id="subSym" placeholder="TICKER" />
-        <label>Logo URL</label>
+        <label>Logo</label>
+        <input id="subLogoFile" type="file" accept="image/*" />
+        <p class="tick">Or paste a link</p>
         <input id="subLogo" placeholder="https://…" />
+        <img id="subLogoPrev" alt="" style="width:56px;height:56px;border-radius:10px;margin-top:8px;display:none;object-fit:cover" />
         <label>X</label>
         <input id="subX" placeholder="https://x.com/…" />
         <label>Telegram</label>
@@ -1195,12 +1198,35 @@
       localStorage.setItem("dl-alert70", on ? "1" : "0");
       toast(on ? "70% curve alerts on for pinned coins" : "Curve alerts off");
     }
+    function compressLogo(file) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        img.onload = () => {
+          const cnv = document.createElement("canvas");
+          const s = 256;
+          cnv.width = s; cnv.height = s;
+          const ctx = cnv.getContext("2d");
+          const m = Math.min(img.width, img.height);
+          ctx.drawImage(img, (img.width-m)/2, (img.height-m)/2, m, m, 0, 0, s, s);
+          URL.revokeObjectURL(url);
+          resolve(cnv.toDataURL("image/jpeg", 0.82));
+        };
+        img.onerror = reject;
+        img.src = url;
+      });
+    }
     async function submitToken() {
       const addr = (($("subAddr")&&$("subAddr").value)||"").trim();
       const ch = ($("subChain")&&$("subChain").value)||"sol";
       const st = $("subStatus");
       if (!addr) { if (st) st.textContent = "Paste a contract."; return; }
-      if (st) st.textContent = "Looking up DexScreener…";
+      if (st) st.textContent = "Preparing listing…";
+      let logoB64 = "";
+      const file = $("subLogoFile") && $("subLogoFile").files && $("subLogoFile").files[0];
+      if (file) {
+        try { logoB64 = await compressLogo(file); } catch (e) {}
+      }
       try {
         const r = await fetch("https://api.dexscreener.com/latest/dex/tokens/" + encodeURIComponent(addr));
         const j = await r.json();
@@ -1216,6 +1242,7 @@
           created: Date.now(),
           desc: (($("subDesc")&&$("subDesc").value)||"").trim(),
           logo: (($("subLogo")&&$("subLogo").value)||"").trim() || (pair && pair.info && pair.info.imageUrl) || "",
+          logoB64,
           address: addr,
           twitter: (($("subX")&&$("subX").value)||"").trim(),
           telegram: (($("subTg")&&$("subTg").value)||"").trim(),
