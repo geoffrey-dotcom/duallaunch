@@ -244,16 +244,16 @@
         <button onclick="setAge(this,'7d')">7d</button>
       </div>
       <div id="singleBoard">
-        <div class="board-head"><span></span><span>Token</span><span>Age</span><span>MCap</span><span>%</span><span>Curve</span><span></span></div>
+        <div class="board-head"><span></span><span>Token</span><span>Age</span><span>MCap</span><span>24h</span><span>Curve</span><span></span></div>
         <div class="table" id="board"></div>
         <button class="btn btn-ghost" id="moreBtn" type="button" onclick="moreBoard()" style="margin-top:16px;display:none">Load more</button>
       </div>
       <div id="dualBoard" style="display:none">
         <p class="kicker" style="margin:18px 0 8px">Newest</p>
-        <div class="board-head"><span></span><span>Token</span><span>Age</span><span>MCap</span><span>%</span><span>Curve</span><span></span></div>
+        <div class="board-head"><span></span><span>Token</span><span>Age</span><span>MCap</span><span>24h</span><span>Curve</span><span></span></div>
         <div class="table" id="boardNew"></div>
         <p class="kicker" style="margin:22px 0 8px">MC $15k+</p>
-        <div class="board-head"><span></span><span>Token</span><span>Age</span><span>MCap</span><span>%</span><span>Curve</span><span></span></div>
+        <div class="board-head"><span></span><span>Token</span><span>Age</span><span>MCap</span><span>24h</span><span>Curve</span><span></span></div>
         <div class="table" id="boardHot"></div>
       </div>
     </section>
@@ -426,8 +426,14 @@
       navigator.clipboard.writeText(url).then(()=>toast("Link copied")).catch(()=>toast(url));
       try { document.title = (coins.find(x=>x.id===id)||{}).symbol ? ((coins.find(x=>x.id===id).symbol) + " · DualLaunch") : "DualLaunch"; } catch(e){}
     }
-    const goalOf = (c) => c.goal || GOAL[c.chain];
-    const pct = (c) => Math.min(100, (Number(c.raised || 0) / goalOf(c)) * 100);
+    const goalOf = (c) => Number(c.goal) > 0 ? Number(c.goal) : (GOAL[c.chain] || 1);
+    const pct = (c) => {
+      if (c.curvePct != null && Number.isFinite(Number(c.curvePct))) {
+        return Math.max(0, Math.min(100, Number(c.curvePct)));
+      }
+      const g = goalOf(c);
+      return Math.max(0, Math.min(100, (Number(c.raised || 0) / g) * 100));
+    };
     const graduated = (c) => !!(c.graduated || c.raised >= goalOf(c));
     const hist = {};
     function trackLive(list) {
@@ -647,7 +653,8 @@
       return { cls: chg >= 0 ? "up" : "down", txt: (chg >= 0 ? "+" : "") + chg.toFixed(1) + "%" };
     }
     function pctLine(c) {
-      return graduated(c) ? "Graduated" : pct(c).toFixed(0) + "% curve · " + Number(c.raised).toFixed(2) + " " + UNIT[c.chain];
+      if (c.listed && !(Number(c.raised) > 0) && !(Number(c.curvePct) > 0)) return "Listed · no curve";
+      return graduated(c) ? "Graduated" : pct(c).toFixed(0) + "% curve";
     }
     function tileHtml(c) {
       const ch = chgBits(c);
@@ -666,7 +673,7 @@
       const g = el.querySelector(".js-chg");
       if (g) { g.className = "chg " + ch.cls + " js-chg"; g.textContent = ch.txt; }
       const ageEl = el.querySelector(".js-age");
-      if (ageEl) ageEl.textContent = "$" + c.symbol + " · " + (c.chain === "rh" ? "PONS" : "pump.fun") + " · " + age(c.created);
+      if (ageEl) ageEl.textContent = age(c.created);
       const mc = el.querySelector(".js-mc");
       if (mc) mc.textContent = c.vol || "—";
       const bar = el.querySelector(".js-bar");
