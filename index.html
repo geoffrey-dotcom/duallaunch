@@ -777,71 +777,80 @@
       }, 8000);
       enrichCoin(c);
     }
+    let tradeTimer = null;
     async function enrichCoin(c) {
-      const host = document.querySelector("#view-coin .panel");
+      if (tradeTimer) { clearInterval(tradeTimer); tradeTimer = null; }
+      const host = document.querySelector("#view-coin .detail") || document.querySelector("#view-coin .panel");
       if (!host || !c.address) return;
-      const box = document.createElement("div");
-      box.className = "panel";
-      box.innerHTML = "<p class='tick'>Loading trades / holders…</p>";
-      host.parentNode && host.parentNode.appendChild(box);
-      let html = "";
-      try {
-        const r = await fetch("https://api.dexscreener.com/latest/dex/tokens/" + encodeURIComponent(c.address));
-        const j = await r.json();
-        const pair = (j.pairs || [])[0];
-        if (pair) {
-          const tx = (pair.txns && pair.txns.h24) || {};
-          html += "<p class='kicker'>24h flow</p>";
-          html += "<div class='stats'><div class='stat'><b>Buys</b>" + (tx.buys || 0) + "</div><div class='stat'><b>Sells</b>" + (tx.sells || 0) + "</div><div class='stat'><b>Vol</b>" + (pair.volume && pair.volume.h24 ? "$" + Math.round(pair.volume.h24).toLocaleString() : "—") + "</div></div>";
+      let box = document.getElementById("coinExtra");
+      if (!box) {
+        box = document.createElement("div");
+        box.id = "coinExtra";
+        box.className = "panel";
+        host.appendChild(box);
+      }
+      async function tick() {
+        if (!document.getElementById("view-coin").classList.contains("on")) {
+          if (tradeTimer) clearInterval(tradeTimer);
+          return;
         }
-      } catch (e) {}
-      if (c.chain === "sol") {
+        let html = "";
         try {
-          const r = await fetch("https://api.mainnet-beta.solana.com", {
-            method:"POST", headers:{ "content-type":"application/json" },
-            body: JSON.stringify({ jsonrpc:"2.0", id:1, method:"getTokenLargestAccounts", params:[c.address] })
-          });
+          const r = await fetch("/api/trades?chain=" + encodeURIComponent(c.chain) + "&addr=" + encodeURIComponent(c.address));
           const j = await r.json();
-          const accs = ((j.result || {}).value || []).slice(0, 8);
-          if (accs.length) {
-            html += "<p class='kicker' style='margin-top:14px'>Top holders</p>";
-            html += accs.map((a,i) => "<div class='tick'>" + (i+1) + ". " + String(a.address).slice(0,4) + "…" + String(a.address).slice(-4) + " · " + Number((a.uiAmount) || 0).toLocaleString() + "</div>").join("");
+          if (j.mcap) {
+            c.mcap = j.mcap;
+            c.vol = "$" + Math.round(j.mcap).toLocaleString();
           }
-        } catch (e) {}
-      }
-      if (c.chain === "rh") {
-        try {
-          let accs = [];
-          const r1 = await fetch("https://robinhoodchain.blockscout.com/api/v2/tokens/" + encodeURIComponent(c.address) + "/holders");
-          if (r1.ok) {
-            const j1 = await r1.json();
-            accs = (j1.items || []).slice(0, 8).map((it) => {
-              const hash = (it.address && (it.address.hash || it.address.address_hash)) || it.address_hash || "";
-              const raw = Number(it.value || 0) / 1e18;
-              return { address: hash, uiAmount: raw };
+          html += "<p class='kicker'>Market</p>";
+          html += "<div class='stats'><div class='stat'><b>MC</b>" + (j.mcap ? "$" + Math.round(j.mcap).toLocaleString() : "—") + "</div>";
+          html += "<div class='stat'><b>Price</b>" + (j.price ? "$" + Number(j.price).toPrecision(4) : "—") + "</div>";
+          html += "<div class='stat'><b>24h buys</b>" + (j.buys || 0) + "</div>";
+          html += "<div class='stat'><b>24h sells</b>" + (j.sells || 0) + "</div></div>";
+          const trades = j.trades || [];
+          html += "<p class='kicker' style='margin-top:14px'>Recent trades</p>";
+          if (!trades.length) html += "<p class='tick'>No tape yet. Open the official pad for the live book.</p>";
+          else html += trades.map(function(tr){
+            const buy = String(tr.kind).toLowerCase().indexOf("buy") >= 0 || String(tr.kind).toLowerCase() === "buy";
+            const usd = Number(tr.usd || 0);
+            const tok = Number(tr.tokens || 0);
+            return "<div class='tick' style='margin:4px 0'>" + (buy ? "🟢 BUY" : "🔴 SELL") + " · $" + usd.toLocaleString(undefined,{maximumFractionDigits:2}) + " · " + tok.toLocaleString(undefined,{maximumFractionDigits:2}) + " " + esc(c.symbol) + "</div>";
+          }).join("");
+        } catch (e) {
+          html += "<p class='tick'>Trade feed unavailable.</p>";
+        }
+        let holders = [];
+        if (c.chain === "sol") {
+          try {
+            const r = await fetch("https://api.mainnet-beta.solana.com", {
+              method:"POST", headers:{ "content-type":"application/json" },
+              body: JSON.stringify({ jsonrpc:"2.0", id:1, method:"getTokenLargestAccounts", params:[c.address] })
             });
-          }
-          if (!accs.length) {
-            const r2 = await fetch("https://robinhoodchain.blockscout.com/api?module=token&action=getTokenHolders&contractaddress=" + encodeURIComponent(c.address) + "&page=1&offset=8");
-            const j2 = await r2.json();
-            accs = (j2.result || []).slice(0, 8).map((it) => ({ address: it.address || "", uiAmount: Number(it.value || 0) / 1e18 }));
-          }
-          if (accs.length) {
-            html += "<p class='kicker' style='margin-top:14px'>Top holders</p>";
-            html += accs.map((a,i) => "<div class='tick'>" + (i+1) + ". " + String(a.address).slice(0,6) + "…" + String(a.address).slice(-4) + " · " + Number(a.uiAmount || 0).toLocaleString(undefined,{maximumFractionDigits:2}) + "</div>").join("");
-          }
-        } catch (e) {}
+            const j = await r.json();
+            holders = ((j.result || {}).value || []).slice(0, 8).map(function(a){ return { address: a.address, n: Number(a.uiAmount || 0) }; });
+          } catch (e) {}
+        }
+        if (c.chain === "rh") {
+          try {
+            const r1 = await fetch("https://robinhoodchain.blockscout.com/api/v2/tokens/" + encodeURIComponent(c.address) + "/holders");
+            if (r1.ok) {
+              const j1 = await r1.json();
+              holders = (j1.items || []).slice(0, 8).map(function(it){
+                const hash = (it.address && (it.address.hash || it.address.address_hash)) || it.address_hash || "";
+                return { address: hash, n: Number(it.value || 0) / 1e18 };
+              });
+            }
+          } catch (e) {}
+        }
+        html += "<p class='kicker' style='margin-top:14px'>Holders" + (holders.length ? " · top " + holders.length : "") + "</p>";
+        if (!holders.length) html += "<p class='tick'>Holder list not indexed yet. Try Open explorer.</p>";
+        else html += holders.map(function(a,i){ return "<div class='tick'>" + (i+1) + ". " + String(a.address).slice(0,6) + "…" + String(a.address).slice(-4) + " · " + Number(a.n||0).toLocaleString(undefined,{maximumFractionDigits:2}) + "</div>"; }).join("");
+        box.innerHTML = html;
       }
-      box.innerHTML = html || "<p class='tick'>No extra market data yet. Open the pad for the live book.</p>";
+      tick();
+      tradeTimer = setInterval(tick, 8000);
     }
 
-    (function paintSocial(){
-      const x = document.getElementById("sideX");
-      if (x && SOCIAL.x) x.href = SOCIAL.x;
-      const tg = document.getElementById("sideTg");
-      if (tg && SOCIAL.tg) { tg.href = SOCIAL.tg; tg.style.display = ""; }
-    })();
-    let evmAddr = "", solAddr = "", evmBal = "", solBal = "";
     function walletLabel() {
       const bits = [];
       if (evmAddr) bits.push(short(evmAddr) + (evmBal ? " · " + evmBal + " ETH" : " · RH"));
@@ -1198,6 +1207,18 @@
         if (j.ok && Array.isArray(j.coins)) rows = j.coins;
       } catch (e) {}
       if (!rows.length) { box.innerHTML = "<div class='lede'>Nothing listed yet. Use Submit.</div>"; return; }
+      await Promise.all(rows.slice(0, 12).map(async (c) => {
+        if (!c.address) return;
+        try {
+          const r = await fetch("https://api.dexscreener.com/latest/dex/tokens/" + encodeURIComponent(c.address));
+          const j = await r.json();
+          const pair = (j.pairs || [])[0];
+          if (!pair) return;
+          c.mcap = Number(pair.marketCap || pair.fdv || 0);
+          c.vol = c.mcap ? "$" + Math.round(c.mcap).toLocaleString() : "—";
+          c.chart = pair.url || c.chart;
+        } catch (e) {}
+      }));
       coins = uniqCoins(rows.concat(coins));
       box.innerHTML = rows.map((c)=>tileHtml(c)).join("");
     }
