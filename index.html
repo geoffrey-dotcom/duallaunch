@@ -533,7 +533,7 @@
     function loadPrefs() {
       try {
         const p = JSON.parse(localStorage.getItem("dl-prefs") || "{}");
-        if (p.filter) filter = p.filter;
+        if (p.filter && p.filter !== "watch") filter = p.filter;
         if (p.sortBy) sortBy = p.sortBy;
         if (p.ageBy) ageBy = p.ageBy;
       } catch (e) {}
@@ -694,16 +694,17 @@
       el.innerHTML = list.map(tileHtml).join("");
     }
     function renderBoard(force) {
-      const dual = filter === "all";
-      if ($("dualBoard")) $("dualBoard").style.display = dual ? "" : "none";
-      if ($("singleBoard")) $("singleBoard").style.display = dual ? "none" : "";
+      const canDual = filter === "all" && $("dualBoard") && $("boardNew") && $("boardHot");
+      if ($("dualBoard")) $("dualBoard").style.display = canDual ? "" : "none";
+      if ($("singleBoard")) $("singleBoard").style.display = canDual ? "none" : "";
       savePrefs();
-      if (dual) {
+      if (canDual) {
         const base = visible();
-        const newest = base.slice().sort((a,b)=>(b.created||0)-(a.created||0)).slice(0, 20);
-        const hot = base.filter((c)=>Number(c.mcap||0)>=15000).sort((a,b)=>(b.mcap||0)-(a.mcap||0)).slice(0, 20);
+        const newest = base.slice().sort((a,b)=>(b.created||0)-(a.created||0)).slice(0, 24);
+        const hot = base.filter((c)=>Number(c.mcap||0)>=15000).sort((a,b)=>(b.mcap||0)-(a.mcap||0)).slice(0, 24);
         fillTable($("boardNew"), newest);
         fillTable($("boardHot"), hot);
+        if (!newest.length && $("board")) fillTable($("board"), visible().slice(0, boardLimit));
         return;
       }
       if (force && $("board")) $("board").dataset.ids = "";
@@ -1165,7 +1166,7 @@
       paintWallet();
       const status = $("feedStatus");
       if (status) status.innerHTML = '<span class="live-dot"></span>' + coins.length + " live · " + new Date().toLocaleTimeString();
-      if (document.getElementById("view-board").classList.contains("on")) renderBoard();
+      renderBoard(true);
     }
     async function pull(src) {
       const r = await fetch("/api/feed?src=" + src + "&t=" + Date.now());
@@ -1347,9 +1348,8 @@
       else if (q.length > 20) lookupCa(q);
     });
     loadPrefs();
-    loadFeed();
+    loadFeed().then(function(){ bootHash(); renderBoard(true); });
     startLive();
-    bootHash();
     window.addEventListener("hashchange", bootHash);
   </script>
 </body>
