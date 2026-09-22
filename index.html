@@ -214,6 +214,7 @@
         <input class="search" id="q" placeholder="Search name, ticker or address" />
       </div>
       <p class="tick" id="feedStatus" style="margin-top:10px">Loading feed…</p>
+      <div id="boardMine" class="table" style="margin:12px 0;display:none"></div>
       <div class="toolbar" id="tb-chain">
         <button class="on" data-f="all" onclick="filterBoard(this,'all')">All</button>
         <button data-f="rh" onclick="filterBoard(this,'rh')">PONS</button>
@@ -311,6 +312,9 @@
         <button class="btn btn-ghost" type="button" onclick="connectSol()">Connect Solana</button>
         <button class="btn btn-ghost" type="button" onclick="scanHoldings()">Scan board-tokens</button>
         <button class="btn btn-ghost" type="button" onclick="toggleAlert70()">Curve alerts 70%</button>
+        <button class="btn btn-ghost" type="button" onclick="exportPins()">Watchlist code</button>
+        <input id="pinCode" placeholder="Paste watchlist code" style="max-width:220px;margin-left:8px" />
+        <button class="btn btn-ghost" type="button" onclick="importPins()">Import</button>
       </div>
       <div id="holdings" class="table"></div>
     </section>
@@ -392,8 +396,9 @@
     function alertsOn() { return localStorage.getItem("dl-alert70") === "1"; }
     function shareCoin(id, ev) {
       if (ev) ev.stopPropagation();
-      const url = location.origin + location.pathname + "#coin=" + encodeURIComponent(id);
+      const url = location.origin + location.pathname + "?coin=" + encodeURIComponent(id);
       navigator.clipboard.writeText(url).then(()=>toast("Link copied")).catch(()=>toast(url));
+      try { document.title = (coins.find(x=>x.id===id)||{}).symbol ? ((coins.find(x=>x.id===id).symbol) + " · DualLaunch") : "DualLaunch"; } catch(e){}
     }
     const goalOf = (c) => c.goal || GOAL[c.chain];
     const pct = (c) => Math.min(100, (Number(c.raised || 0) / goalOf(c)) * 100);
@@ -819,13 +824,10 @@
         box.innerHTML = "<div class='lede'>No board tokens found in this wallet. Connect first, then scan.</div>";
         return;
       }
-      box.innerHTML = found.map(({ c, n }) => `
-        <button class="tile" onclick="show('coin','${esc(c.id)}')">
-          <div class="tile-top"><div class="ident">${av(c)}<div>
-            <div class="name">${esc(c.name)}</div>
-            <div class="tick">${n.toLocaleString(undefined,{maximumFractionDigits:4})} ${esc(c.symbol)} · ${esc(c.vol||"—")}</div>
-          </div></div></div>
-        </button>`).join("");
+      const html = found.map(({ c, n }) => tileHtml(c)).join("");
+      box.innerHTML = html;
+      const mine = $("boardMine");
+      if (mine) { mine.style.display = found.length ? "" : "none"; mine.innerHTML = found.length ? ("<p class='kicker'>In your wallet</p>" + html) : ""; }
     }
     function renderWallet() {
       paintWallet();
@@ -1098,9 +1100,47 @@
       if (!rows.length) { box.innerHTML = "<div class='lede'>Nothing listed yet. Use Submit.</div>"; return; }
       box.innerHTML = rows.map((c)=>tileHtml(c)).join("");
     }
+    function exportPins() {
+      const code = btoa(unescape(encodeURIComponent(JSON.stringify(pins()))));
+      navigator.clipboard.writeText(code).then(()=>toast("Watchlist code copied")).catch(()=>toast(code));
+    }
+    function importPins() {
+      const raw = (($("pinCode")&&$("pinCode").value)||"").trim();
+      if (!raw) return;
+      try {
+        const arr = JSON.parse(decodeURIComponent(escape(atob(raw))));
+        if (Array.isArray(arr)) { setPins(arr); savePrefs(); toast("Watchlist imported"); renderBoard(true); }
+      } catch (e) { toast("Invalid code"); }
+    }
+    async function lookupCa(q) {
+      toast("Looking up…");
+      try {
+        const r = await fetch("https://api.dexscreener.com/latest/dex/tokens/" + encodeURIComponent(q));
+        const j = await r.json();
+        const pair = (j.pairs||[])[0];
+        if (!pair) { toast("No pair on DexScreener"); return; }
+        const chain = String(pair.chainId||"").toLowerCase().includes("robin") ? "rh" : "sol";
+        const addr = (pair.baseToken||{}).address || q;
+        const c = {
+          id: (chain==="rh"?"rh-":"sol-") + String(addr).toLowerCase(),
+          name: (pair.baseToken||{}).name || "Token",
+          symbol: (pair.baseToken||{}).symbol || "?",
+          chain, raised: 0, goal: chain==="rh"?4.2:85,
+          vol: pair.marketCap ? "$"+Math.round(pair.marketCap).toLocaleString() : "—",
+          mcap: Number(pair.marketCap||0), created: Date.now(),
+          logo: (pair.info && pair.info.imageUrl) || "",
+          address: addr, link: pair.url || "", chart: pair.url || ""
+        };
+        coins = uniqCoins([c].concat(coins));
+        show("coin", c.id);
+      } catch (e) { toast("Lookup failed"); }
+    }
     function bootHash() {
+      const qs = new URLSearchParams(location.search||"");
+      const qc = qs.get("coin");
       const h = (location.hash||"").replace(/^#/,"");
-      if (h.startsWith("coin=")) show("coin", decodeURIComponent(h.slice(5)));
+      if (qc) show("coin", decodeURIComponent(qc));
+      else if (h.startsWith("coin=")) show("coin", decodeURIComponent(h.slice(5)));
       else if (h==="listed") show("listed");
       else if (h==="submit") show("submit");
     }
@@ -1110,6 +1150,7 @@
       if (!q) return;
       const hit = coins.find((c)=> (c.address||"").toLowerCase()===q.toLowerCase() || (c.symbol||"").toLowerCase()===q.toLowerCase());
       if (hit) show("coin", hit.id);
+      else if (q.length > 20) lookupCa(q);
     });
     loadPrefs();
     loadFeed();
