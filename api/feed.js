@@ -70,21 +70,15 @@ module.exports = async function handler(req, res) {
     const ponsLogo = (t) => ipfs(t.logo || t.image || t.imageUrl || t.img || (t.metadata && (t.metadata.image || t.metadata.logo)) || "");
 
     const mapPons = (t) => {
-      const apiPct = t.graduationProgressPct;
-      const goal = Number(t.graduationThresholdEth) || 4.2;
+      const apiPct = Number(t.graduationProgressPct);
+      let goal = Number(t.graduationThresholdEth);
+      if (!Number.isFinite(goal) || goal <= 0 || goal > 50) goal = 4.2;
       let raised = Number(t.pairedPrincipalEth);
-      let pct = Number(apiPct);
-      const graduated = !!t.graduated || (!!t.complete) || pct >= 100;
       if (!Number.isFinite(raised) || raised < 0) raised = 0;
-      if (Number.isFinite(pct) && pct > 0 && raised <= 0) raised = (pct / 100) * goal;
-      if (graduated) {
-        raised = goal;
-        pct = 100;
-      } else if (Number.isFinite(pct)) {
-        raised = Math.min(goal * 0.99, (pct / 100) * goal);
-      } else {
-        pct = goal ? Math.min(99, (raised / goal) * 100) : 0;
-      }
+      let pct = Number.isFinite(apiPct) ? Math.max(0, Math.min(100, apiPct)) : (goal ? Math.min(100, (raised / goal) * 100) : 0);
+      const graduated = !!t.graduated || !!t.complete || pct >= 100;
+      if (graduated) { pct = 100; raised = goal; }
+      else raised = (pct / 100) * goal;
       const addr = t.token || "";
       const launched = new Date(t.launchedAt || Date.now()).getTime();
       return {
@@ -94,6 +88,7 @@ module.exports = async function handler(req, res) {
         chain: "rh",
         raised,
         goal,
+        curvePct: pct,
         vol: t.marketCapUsd != null ? "$" + Math.round(t.marketCapUsd).toLocaleString() : "—",
         mcap: Number(t.marketCapUsd || 0),
         created: launched,
@@ -121,6 +116,7 @@ module.exports = async function handler(req, res) {
       const graduated = !!t.complete || realSol >= 85 || (ageMs > 14 * 86400000 && usd > 50000);
       let raised = Math.min(85, Math.max(0, realSol));
       if (graduated) raised = 85;
+      const curvePct = graduated ? 100 : Math.min(100, (raised / 85) * 100);
       return {
         id: "sol-" + mint,
         name: t.name || "Unnamed",
@@ -128,6 +124,7 @@ module.exports = async function handler(req, res) {
         chain: "sol",
         raised,
         goal: 85,
+        curvePct,
         vol: t.usd_market_cap ? "$" + Math.round(t.usd_market_cap).toLocaleString() : "—",
         mcap: Number(t.usd_market_cap || 0),
         created,
