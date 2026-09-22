@@ -351,7 +351,9 @@
         <label>Ticker</label>
         <input id="subSym" placeholder="TICKER" />
         <label>Logo</label>
-        <input id="subLogoFile" type="file" accept="image/*" />
+        <input id="subLogoFile" type="file" accept="image/*" style="position:absolute;opacity:0;width:1px;height:1px" />
+        <button class="btn btn-ghost" type="button" id="subLogoBtn" onclick="document.getElementById('subLogoFile').click()">Choose image</button>
+        <span class="tick" id="subLogoName">No file chosen</span>
         <p class="tick">Or paste a link</p>
         <input id="subLogo" placeholder="https://…" />
         <img id="subLogoPrev" alt="" style="width:56px;height:56px;border-radius:10px;margin-top:8px;display:none;object-fit:cover" />
@@ -1339,6 +1341,10 @@
       else if (h==="listed") show("listed");
       else if (h==="submit") show("submit");
     }
+    if ($("subLogoFile")) $("subLogoFile").addEventListener("change", function(){
+      const f = this.files && this.files[0];
+      if ($("subLogoName")) $("subLogoName").textContent = f ? f.name : "No file chosen";
+    });
     if ($("q")) $("q").addEventListener("keydown", (e) => {
       if (e.key !== "Enter") return;
       const q = ($("q").value||"").trim();
@@ -1347,6 +1353,15 @@
       if (hit) show("coin", hit.id);
       else if (q.length > 20) lookupCa(q);
     });
+    if ($("subLogoBtn") && $("subLogoFile")) {
+      $("subLogoBtn").onclick = function(){ $("subLogoFile").click(); };
+      $("subLogoFile").addEventListener("change", function(){
+        const f = this.files && this.files[0];
+        if ($("subLogoName")) $("subLogoName").textContent = f ? f.name : "No file chosen";
+        const prev = $("subLogoPrev");
+        if (prev && f) { prev.src = URL.createObjectURL(f); prev.style.display = "block"; }
+      });
+    }
     loadPrefs();
     loadFeed().then(function(){ bootHash(); renderBoard(true); });
     startLive();
