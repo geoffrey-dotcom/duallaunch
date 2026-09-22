@@ -854,8 +854,14 @@
             if (r1.ok) {
               const j1 = await r1.json();
               holders = (j1.items || []).slice(0, 8).map(function(it){
-                const hash = (it.address && (it.address.hash || it.address.address_hash)) || it.address_hash || "";
-                return { address: hash, n: Number(it.value || 0) / 1e18 };
+                const addrObj = it.address || {};
+                const hash = addrObj.hash || addrObj.address_hash || it.address_hash || "";
+                return {
+                  address: hash,
+                  n: Number(it.value || 0) / 1e18,
+                  contract: !!(addrObj.is_contract),
+                  name: addrObj.name || addrObj.implementation_name || ""
+                };
               });
             }
           } catch (e) {}
@@ -864,13 +870,25 @@
         html += "<p class='kicker' style='margin-top:18px'>Holders" + (holders.length ? " · top " + holders.length : "") + "</p>";
         if (!holders.length) html += "<p class='tick'>Holder list not indexed yet. Try Open explorer.</p>";
         else {
+          const known = {
+            "0xa5aab3f0c6eeadf30ef1d3eb997108e976351feb":"PONS factory",
+            "0x736d76699c26d0d966744cae304c000d471f7f35":"PONS locker",
+            "0x1f7d7550b1b028f7571e69a784071f0205fd2efa":"PONS v3 factory",
+            "0x73991a25c818bf1f1128deaab1492d45638de0d3":"PONS positions"
+          };
           html += "<table class='tape'><thead><tr><th>#</th><th>Wallet</th><th>Amount</th><th>%</th></tr></thead><tbody>";
           html += holders.map(function(a,i){
             const pctH = total ? (Number(a.n||0)/total*100) : 0;
+            const low = String(a.address || "").toLowerCase();
             const shortA = String(a.address).slice(0,6) + "…" + String(a.address).slice(-4);
-            return "<tr><td class='tick'>" + (i+1) + "</td><td class='mono'>" + shortA + "</td><td>" + Number(a.n||0).toLocaleString(undefined,{maximumFractionDigits:2}) + "</td><td class='tick'>" + pctH.toFixed(1) + "%</td></tr>";
+            let tag = known[low] || "";
+            if (!tag && a.contract) tag = a.name || "Contract";
+            if (!tag && i === 0 && pctH >= 25 && !graduated(c)) tag = "Bonding curve";
+            const label = tag ? ("<b>" + esc(tag) + "</b><div class='tick'>" + shortA + "</div>") : ("<span class='mono'>" + shortA + "</span>");
+            return "<tr><td class='tick'>" + (i+1) + "</td><td>" + label + "</td><td>" + Number(a.n||0).toLocaleString(undefined,{maximumFractionDigits:2}) + "</td><td class='tick'>" + pctH.toFixed(1) + "%</td></tr>";
           }).join("");
           html += "</tbody></table>";
+          html += "<p class='tick' style='margin-top:8px'>The biggest holder is often the bonding curve / pool, not a buyer.</p>";
         }
         box.innerHTML = html;
       }
