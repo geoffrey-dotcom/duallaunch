@@ -96,6 +96,8 @@ module.exports = async function handler(req, res) {
     ]);
     const pons = ((await ponsRes.json()).coins || []).filter((c) => c.chain === "rh" && Number(c.mcap || 0) >= MIN_MCAP);
     const pump = ((await pumpRes.json()).coins || []).filter((c) => c.chain === "sol" && Number(c.mcap || 0) >= MIN_MCAP);
+    const force = String((req.query && req.query.force) || "") === "1";
+    if (force) seen.clear();
     const freshAge = Date.now() - 45 * 60 * 1000;
     let posted = 0;
     async function push(list, chat, thread) {
