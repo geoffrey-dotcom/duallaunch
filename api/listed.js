@@ -2,6 +2,19 @@ const REPO = process.env.GITHUB_REPO || "geoffrey-dotcom/duallaunch";
 const TOKEN = process.env.GITHUB_TOKEN || "";
 const RAW = "https://raw.githubusercontent.com/" + REPO + "/main/listed.json";
 
+async function putGithub(path, contentB64, message) {
+  const get = await fetch("https://api.github.com/repos/" + REPO + "/contents/" + path, {
+    headers: { authorization: "Bearer " + TOKEN, accept: "application/vnd.github+json", "user-agent": "duallaunch" }
+  });
+  const cur = get.ok ? await get.json() : {};
+  const put = await fetch("https://api.github.com/repos/" + REPO + "/contents/" + path, {
+    method: "PUT",
+    headers: { authorization: "Bearer " + TOKEN, accept: "application/vnd.github+json", "user-agent": "duallaunch", "content-type": "application/json" },
+    body: JSON.stringify({ message, content: contentB64, sha: cur.sha })
+  });
+  return put.json();
+}
+
 async function githubFile() {
   const r = await fetch("https://api.github.com/repos/" + REPO + "/contents/listed.json", {
     headers: { authorization: "Bearer " + TOKEN, accept: "application/vnd.github+json", "user-agent": "duallaunch" }
@@ -57,13 +70,21 @@ module.exports = async function handler(req, res) {
   }
   if (!Array.isArray(list)) list = [];
   const id = String(c.id || ((c.chain === "rh" ? "rh-" : "sol-") + addr.toLowerCase()));
+  let logo = String(c.logo || "").slice(0, 300);
+  const rawB64 = String(c.logoB64 || "").replace(/^data:image\/[^;]+;base64,/, "");
+  if (rawB64.length > 80) {
+    const safe = id.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 48) || "logo";
+    const path = "logos/" + safe + ".jpg";
+    await putGithub(path, rawB64, "logo " + safe);
+    logo = "https://raw.githubusercontent.com/" + REPO + "/main/" + path;
+  }
   const next = {
     id,
     name: String(c.name || "Token").slice(0, 64),
     symbol: String(c.symbol || "?").slice(0, 16),
     chain: c.chain === "rh" ? "rh" : "sol",
     address: addr,
-    logo: String(c.logo || "").slice(0, 300),
+    logo,
     twitter: String(c.twitter || "").slice(0, 200),
     telegram: String(c.telegram || "").slice(0, 200),
     website: String(c.website || "").slice(0, 200),
