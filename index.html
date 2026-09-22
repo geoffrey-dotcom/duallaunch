@@ -310,6 +310,12 @@
       <div class="wallet-bar" style="gap:8px;display:flex;flex-wrap:wrap;margin:12px 0 20px">
         <button class="btn btn-ghost" type="button" onclick="connectEvm()">Connect / switch RH</button>
         <button class="btn btn-ghost" type="button" onclick="connectSol()">Connect Solana</button>
+        <p class="tick" id="mobileWallets" style="margin-top:12px">On phone: open DualLaunch inside the wallet browser.</p>
+        <div class="split" id="mobileWalletBtns" style="margin-top:8px;max-width:480px">
+          <a class="btn btn-lime" id="openPhantom" href="#" target="_blank" rel="noopener">Open in Phantom</a>
+          <a class="btn btn-ghost" id="openSolflare" href="#" target="_blank" rel="noopener">Open in Solflare</a>
+          <a class="btn btn-ghost" id="openMetamask" href="#" target="_blank" rel="noopener">Open in MetaMask</a>
+        </div>
         <button class="btn btn-ghost" type="button" onclick="scanHoldings()">Scan board-tokens</button>
         <button class="btn btn-ghost" type="button" onclick="toggleAlert70()">Curve alerts 70%</button>
         <button class="btn btn-ghost" type="button" onclick="exportPins()">Watchlist code</button>
@@ -955,6 +961,12 @@
     }
     $("btnEvm").onclick = connectEvm;
     $("btnSolW").onclick = connectSol;
+    (function mobileWalletLinks(){
+      const here = encodeURIComponent("https://www.duallaunch.xyz/");
+      if ($("openPhantom")) $("openPhantom").href = "https://phantom.app/ul/browse/https://www.duallaunch.xyz/";
+      if ($("openSolflare")) $("openSolflare").href = "https://solflare.com/ul/v1/browse/" + here;
+      if ($("openMetamask")) $("openMetamask").href = "https://metamask.app.link/dapp/www.duallaunch.xyz";
+    })();
 
     let jupReady = false;
     function initSwap() {
