@@ -39,6 +39,9 @@ function photosOf(c) {
     out.push("https://dd.dexscreener.com/ds-data/tokens/solana/" + a + "/header.png");
     out.push("https://dd.dexscreener.com/ds-data/tokens/solana/" + a + ".png");
   }
+  if (a && c.chain === "rh") {
+    out.push("https://dd.dexscreener.com/ds-data/tokens/robinhood/" + a + "/header.png");
+  }
   return out;
 }
 
