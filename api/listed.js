@@ -2,19 +2,28 @@ const REPO = process.env.GITHUB_REPO || "geoffrey-dotcom/duallaunch";
 const TOKEN = process.env.GITHUB_TOKEN || "";
 const RAW = "https://raw.githubusercontent.com/" + REPO + "/main/listed.json";
 
-async function readList() {
-  const r = await fetch(RAW + "?t=" + Date.now(), { cache: "no-store" });
-  if (!r.ok) return [];
-  const j = await r.json();
-  return Array.isArray(j) ? j : [];
-}
-
 async function githubFile() {
   const r = await fetch("https://api.github.com/repos/" + REPO + "/contents/listed.json", {
     headers: { authorization: "Bearer " + TOKEN, accept: "application/vnd.github+json", "user-agent": "duallaunch" }
   });
   if (!r.ok) return null;
   return r.json();
+}
+
+async function readList() {
+  if (TOKEN) {
+    const file = await githubFile();
+    if (file && file.content) {
+      try {
+        const j = JSON.parse(Buffer.from(file.content, "base64").toString("utf8"));
+        return Array.isArray(j) ? j : [];
+      } catch (e) {}
+    }
+  }
+  const r = await fetch(RAW + "?t=" + Date.now(), { cache: "no-store" });
+  if (!r.ok) return [];
+  const j = await r.json();
+  return Array.isArray(j) ? j : [];
 }
 
 module.exports = async function handler(req, res) {
