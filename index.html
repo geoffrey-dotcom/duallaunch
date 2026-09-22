@@ -110,6 +110,12 @@
     .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 18px; }
     .stat { background: #0c0c14; border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
     .stat b { display: block; color: var(--dim); font-size: 11px; font-weight: 500; margin-bottom: 4px; }
+    .tape { width:100%; border-collapse:collapse; font-family:"IBM Plex Mono",monospace; font-size:12px; margin-top:8px; }
+    .tape th { text-align:left; color:var(--dim); font-weight:500; font-size:10px; letter-spacing:.08em; text-transform:uppercase; padding:8px 6px; border-bottom:1px solid var(--line); }
+    .tape td { padding:8px 6px; border-bottom:1px solid #16161f; }
+    .tape tr:hover td { background:#12121a; }
+    .buy { color:var(--lime); } .sell { color:#ff6b9a; }
+    .mono { font-family:"IBM Plex Mono",monospace; }
     .warn { margin-top: 12px; font-size: 12px; color: #8a6a2b; line-height: 1.45; }
     .toast {
       position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
@@ -810,12 +816,17 @@
           const trades = j.trades || [];
           html += "<p class='kicker' style='margin-top:14px'>Recent trades</p>";
           if (!trades.length) html += "<p class='tick'>No tape yet. Open the official pad for the live book.</p>";
-          else html += trades.map(function(tr){
-            const buy = String(tr.kind).toLowerCase().indexOf("buy") >= 0 || String(tr.kind).toLowerCase() === "buy";
-            const usd = Number(tr.usd || 0);
-            const tok = Number(tr.tokens || 0);
-            return "<div class='tick' style='margin:4px 0'>" + (buy ? "🟢 BUY" : "🔴 SELL") + " · $" + usd.toLocaleString(undefined,{maximumFractionDigits:2}) + " · " + tok.toLocaleString(undefined,{maximumFractionDigits:2}) + " " + esc(c.symbol) + "</div>";
-          }).join("");
+          else {
+            html += "<table class='tape'><thead><tr><th>Side</th><th>USD</th><th>Tokens</th><th>Time</th></tr></thead><tbody>";
+            html += trades.map(function(tr){
+              const buy = String(tr.kind).toLowerCase().indexOf("sell") < 0;
+              const usd = Number(tr.usd || 0);
+              const tok = Number(tr.tokens || 0);
+              const tm = tr.at ? new Date(tr.at).toLocaleTimeString() : "—";
+              return "<tr><td class='" + (buy?"buy":"sell") + "'>" + (buy?"Buy":"Sell") + "</td><td>$" + usd.toLocaleString(undefined,{maximumFractionDigits:2}) + "</td><td>" + tok.toLocaleString(undefined,{maximumFractionDigits:2}) + " " + esc(c.symbol) + "</td><td class='tick'>" + tm + "</td></tr>";
+            }).join("");
+            html += "</tbody></table>";
+          }
         } catch (e) {
           html += "<p class='tick'>Trade feed unavailable.</p>";
         }
@@ -842,9 +853,18 @@
             }
           } catch (e) {}
         }
-        html += "<p class='kicker' style='margin-top:14px'>Holders" + (holders.length ? " · top " + holders.length : "") + "</p>";
+        const total = holders.reduce(function(s,a){ return s + Number(a.n||0); }, 0);
+        html += "<p class='kicker' style='margin-top:18px'>Holders" + (holders.length ? " · top " + holders.length : "") + "</p>";
         if (!holders.length) html += "<p class='tick'>Holder list not indexed yet. Try Open explorer.</p>";
-        else html += holders.map(function(a,i){ return "<div class='tick'>" + (i+1) + ". " + String(a.address).slice(0,6) + "…" + String(a.address).slice(-4) + " · " + Number(a.n||0).toLocaleString(undefined,{maximumFractionDigits:2}) + "</div>"; }).join("");
+        else {
+          html += "<table class='tape'><thead><tr><th>#</th><th>Wallet</th><th>Amount</th><th>%</th></tr></thead><tbody>";
+          html += holders.map(function(a,i){
+            const pctH = total ? (Number(a.n||0)/total*100) : 0;
+            const shortA = String(a.address).slice(0,6) + "…" + String(a.address).slice(-4);
+            return "<tr><td class='tick'>" + (i+1) + "</td><td class='mono'>" + shortA + "</td><td>" + Number(a.n||0).toLocaleString(undefined,{maximumFractionDigits:2}) + "</td><td class='tick'>" + pctH.toFixed(1) + "%</td></tr>";
+          }).join("");
+          html += "</tbody></table>";
+        }
         box.innerHTML = html;
       }
       tick();
