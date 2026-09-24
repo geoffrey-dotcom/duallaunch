@@ -1,5 +1,25 @@
 [
   {
+    "id": "sol-8yfvmxuvjjjwea8cglbkekpdfo3n8yvzfrodidjwpump",
+    "name": "$Kept",
+    "symbol": "$KEPT",
+    "chain": "sol",
+    "address": "8yFvMxUVJJJWea8cgLbkEKPdFo3N8YVzFrodiDjwpump",
+    "logo": "",
+    "twitter": "",
+    "telegram": "",
+    "website": "",
+    "desc": "",
+    "listed": true,
+    "created": 1790246527905,
+    "mcap": 4130.79,
+    "vol": "$4,131",
+    "raised": 0,
+    "goal": 85,
+    "link": "https://dexscreener.com/solana/6k3pt1kfrxlbztznxfmjv6aklrx17x7tcsgpjf2fyuz7",
+    "chart": "https://dexscreener.com/solana/6k3pt1kfrxlbztznxfmjv6aklrx17x7tcsgpjf2fyuz7"
+  },
+  {
     "id": "rh-0x7c17426e8e156dd891a3e3828195d6b257d36107",
     "name": "test",
     "symbol": "TEST",
