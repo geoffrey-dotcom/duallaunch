@@ -1,5 +1,25 @@
 [
   {
+    "id": "rh-6ilrk475gh1yuv1tqksc5nuugahgxetuf2gto1xvsz5m",
+    "name": "BitcoinX",
+    "symbol": "BTCX",
+    "chain": "rh",
+    "address": "6iLrk475gh1yUv1tQKSC5nUugAHgxeTUf2GTo1Xvsz5m",
+    "logo": "https://raw.githubusercontent.com/geoffrey-dotcom/duallaunch/main/logos/rh-6ilrk475gh1yuv1tqksc5nuugahgxetuf2gto1xvsz5m.jpg",
+    "twitter": "https://x.com/BTCX_NETWORK",
+    "telegram": "https://t.me/bitcoinx_crypto",
+    "website": "https://btcx.network/",
+    "desc": "Holding BTCX gives you multiple daily airdrops of leveraged Bitcoin\n\nBTCX is paired with Hylo's XBTC which has 2.6x leverage & no liquidation risk. It uses it's lending protocol to create the 2.6x leverage.\n\nBy holding BTCX, you will be airdropped regularly with XBTC.\n\nAdditionally, assuming net neutral buy/sell pressure, BCTX tracks Bitcoin with 2.6x leverage.\n\nWith BTCX, you get leveraged bitcoi",
+    "listed": true,
+    "created": 1790281487881,
+    "mcap": 1138969,
+    "vol": "$1.138.969",
+    "raised": 0,
+    "goal": 4.2,
+    "link": "https://dexscreener.com/solana/99dwaxph7bkkqlz1ywqx21hopqnl3umbnamd1ec86vfs",
+    "chart": "https://dexscreener.com/solana/99dwaxph7bkkqlz1ywqx21hopqnl3umbnamd1ec86vfs"
+  },
+  {
     "id": "sol-8yfvmxuvjjjwea8cglbkekpdfo3n8yvzfrodidjwpump",
     "name": "$Kept",
     "symbol": "$KEPT",
