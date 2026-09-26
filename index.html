@@ -26,6 +26,20 @@
       --jupiter-plugin-interactive: 20, 20, 34;
       --jupiter-plugin-module: 16, 16, 24;
     }
+    html[data-theme="light"] {
+      --bg: #f4f5f8;
+      --panel: #ffffff;
+      --line: #d8dbe3;
+      --text: #12131a;
+      --dim: #5c5e6b;
+    }
+    html[data-theme="light"] body { background: var(--bg); color: var(--text); }
+    html[data-theme="light"] aside.side { background: #eceef3; }
+    html[data-theme="light"] .nav-links button.on { color: #07070c; background: var(--lime); }
+    html[data-theme="light"] .tile, html[data-theme="light"] .panel, html[data-theme="light"] .sbox, html[data-theme="light"] .stat {
+      background: #fff;
+    }
+    html[data-theme="light"] .av-fallback { background:#e6e8ee; color:#12131a; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       background: var(--bg);
@@ -157,31 +171,54 @@
     .foot-links { display:flex; gap:8px; flex-wrap:wrap; }
     .foot-links a { text-decoration:none; color:var(--text); font-size:12px; font-weight:700; padding:8px 12px; border-radius:10px; border:1px solid var(--line); background:#161622; }
     .foot-links a:hover { border-color:#3d3d55; }
+    .topbar { display:none; }
+    .menu-btn, .theme-btn { border:1px solid var(--line); background:var(--panel); color:var(--text); border-radius:10px; padding:8px 12px; font:inherit; font-weight:650; cursor:pointer; }
     @media (max-width: 980px) {
       .shell { flex-direction: column; }
-      aside.side {
-        width: 100%; height: auto; position: sticky; top: 0; z-index: 30;
-        flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px;
-        padding: 12px 14px; border-right: 0; border-bottom: 1px solid var(--line);
+      .topbar {
+        display:flex; align-items:center; gap:8px; position:sticky; top:0; z-index:40;
+        background: var(--panel); border-bottom:1px solid var(--line); padding:10px 12px;
       }
-      .brand { margin-bottom: 0; margin-right: auto; }
-      .nav-links { flex-direction: row; flex-wrap: wrap; width: 100%; }
-      .nav-links button { padding: 8px 10px; font-size: 13px; }
-      .wallets { margin-top: 0; flex-direction: row; width: 100%; }
-      .wallets .btn { flex: 1; font-size: 12px; padding: 8px 10px; }
-      main { padding: 20px 14px 72px; max-width: none; }
-      h1 { font-size: 26px; margin: 10px 0 10px; }
-      .lede { margin-bottom: 16px; font-size: 14px; }
-      .hero, .detail, .stats, .split, .stats-strip, .launch-grid { grid-template-columns: 1fr; }
+      .topbar .brand { margin:0; flex:1; }
+      aside.side {
+        display:none; position:fixed; top:56px; left:0; right:0; z-index:35;
+        width:100%; height:auto; max-height:calc(100vh - 56px); overflow:auto;
+        padding:12px 14px 20px; border-right:0; border-bottom:1px solid var(--line);
+        background: var(--panel);
+      }
+      body.nav-open aside.side { display:flex; }
+      .brand { margin-bottom: 0; }
+      .nav-links { flex-direction: column; width: 100%; }
+      .nav-links button { padding: 12px 10px; font-size: 15px; width:100%; }
+      .wallets { margin-top: 8px; flex-direction: column; width: 100%; }
+      .wallets .btn { width:100%; }
+      main { padding: 16px 12px 80px; }
+      h1 { font-size: 22px; margin: 8px 0; }
+      .lede { margin-bottom: 12px; font-size: 13px; }
+      .hero, .detail, .stats, .split, .stats-strip, .launch-grid, .dual-grid { grid-template-columns: 1fr !important; }
       .board-head { display:none; }
-      .tile { grid-template-columns: 28px 1fr 80px; }
-      .tile > :nth-child(6), .tile > :nth-child(7) { display:none; }
-      .table { gap: 12px; }
-      .toolbar { gap: 6px; margin: 12px 0 10px; overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+      .tile {
+        grid-template-columns: 32px 1fr auto;
+        grid-template-areas:
+          "pin ident mc"
+          "pin meta meta"
+          "bar bar bar"
+          "act act act";
+        gap: 8px 10px;
+        padding: 12px;
+      }
+      .tile > :nth-child(1) { grid-area: pin; }
+      .tile > :nth-child(2) { grid-area: ident; }
+      .tile > :nth-child(3) { grid-area: meta; }
+      .tile > :nth-child(4) { grid-area: mc; text-align:right; }
+      .tile > :nth-child(5) { display:none; }
+      .tile > :nth-child(6) { grid-area: bar; }
+      .tile > :nth-child(7) { grid-area: act; display:flex !important; }
+      .table { gap: 10px; }
+      .toolbar { gap: 6px; margin: 10px 0; overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
       .toolbar button { white-space: nowrap; flex: 0 0 auto; }
       .search { max-width: none; }
-      .chart-wrap, .chart-frame { min-height: 280px; height: 280px; }
-      .tile { padding: 14px; }
+      .chart-wrap, .chart-frame { min-height: 240px; height: 240px; }
       .swap-shell { width: 100%; min-height: 480px; }
       footer { padding: 16px 14px 28px; }
     }
@@ -189,8 +226,14 @@
 </head>
 <body>
   <div class="shell">
+  <div class="topbar">
+    <button type="button" class="menu-btn" onclick="toggleNav()">Menu</button>
+    <div class="brand" onclick="show('board');closeNav();"><img src="logo.jpg" alt="" /> DualLaunch</div>
+    <button type="button" class="theme-btn" onclick="toggleTheme()">Theme</button>
+  </div>
   <aside class="side">
     <div class="brand" onclick="show('board')"><img src="logo.jpg" alt="" /> DualLaunch</div>
+    <button type="button" class="theme-btn" onclick="toggleTheme()" style="margin-bottom:10px">Light / dark</button>
     <div class="nav-links">
       <button id="nav-board" class="on" onclick="show('board')">Board <span id="pinCount" class="tick"></span></button>
       <button id="nav-launch" onclick="show('launch')">Launch</button>
@@ -402,6 +445,7 @@
     const esc = (s) => String(s || "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
     function toast(msg) { const t = $("toast"); t.textContent = msg; t.style.display = "block"; setTimeout(() => t.style.display = "none", 3800); }
     function show(name, id) {
+      closeNav();
       document.querySelectorAll(".view").forEach((v) => v.classList.remove("on"));
       $("view-" + name).classList.add("on");
       $("nav-board").classList.toggle("on", name === "board");
@@ -1394,6 +1438,17 @@
         if (prev && f) { prev.src = URL.createObjectURL(f); prev.style.display = "block"; }
       });
     }
+    function closeNav(){ document.body.classList.remove("nav-open"); }
+    function toggleNav(){ document.body.classList.toggle("nav-open"); }
+    function applyTheme(name){
+      document.documentElement.setAttribute("data-theme", name === "light" ? "light" : "dark");
+      try { localStorage.setItem("dl-theme", name === "light" ? "light" : "dark"); } catch(e){}
+    }
+    function toggleTheme(){
+      const cur = document.documentElement.getAttribute("data-theme") || "dark";
+      applyTheme(cur === "light" ? "dark" : "light");
+    }
+    try { applyTheme(localStorage.getItem("dl-theme") || "dark"); } catch(e){ applyTheme("dark"); }
     loadPrefs();
     loadFeed().then(function(){ bootHash(); renderBoard(true); });
     startLive();
