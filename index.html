@@ -26,20 +26,6 @@
       --jupiter-plugin-interactive: 20, 20, 34;
       --jupiter-plugin-module: 16, 16, 24;
     }
-    html[data-theme="light"] {
-      --bg: #f4f5f8;
-      --panel: #ffffff;
-      --line: #d8dbe3;
-      --text: #12131a;
-      --dim: #5c5e6b;
-    }
-    html[data-theme="light"] body { background: var(--bg); color: var(--text); }
-    html[data-theme="light"] aside.side { background: #eceef3; }
-    html[data-theme="light"] .nav-links button.on { color: #07070c; background: var(--lime); }
-    html[data-theme="light"] .tile, html[data-theme="light"] .panel, html[data-theme="light"] .sbox, html[data-theme="light"] .stat {
-      background: #fff;
-    }
-    html[data-theme="light"] .av-fallback { background:#e6e8ee; color:#12131a; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       background: var(--bg);
@@ -229,11 +215,9 @@
   <div class="topbar">
     <button type="button" class="menu-btn" onclick="toggleNav()">Menu</button>
     <div class="brand" onclick="show('board');closeNav();"><img src="logo.jpg" alt="" /> DualLaunch</div>
-    <button type="button" class="theme-btn" onclick="toggleTheme()">Theme</button>
-  </div>
+      </div>
   <aside class="side">
     <div class="brand" onclick="show('board')"><img src="logo.jpg" alt="" /> DualLaunch</div>
-    <button type="button" class="theme-btn" onclick="toggleTheme()" style="margin-bottom:10px">Light / dark</button>
     <div class="nav-links">
       <button id="nav-board" class="on" onclick="show('board')">Board <span id="pinCount" class="tick"></span></button>
       <button id="nav-launch" onclick="show('launch')">Launch</button>
@@ -1440,15 +1424,6 @@
     }
     function closeNav(){ document.body.classList.remove("nav-open"); }
     function toggleNav(){ document.body.classList.toggle("nav-open"); }
-    function applyTheme(name){
-      document.documentElement.setAttribute("data-theme", name === "light" ? "light" : "dark");
-      try { localStorage.setItem("dl-theme", name === "light" ? "light" : "dark"); } catch(e){}
-    }
-    function toggleTheme(){
-      const cur = document.documentElement.getAttribute("data-theme") || "dark";
-      applyTheme(cur === "light" ? "dark" : "light");
-    }
-    try { applyTheme(localStorage.getItem("dl-theme") || "dark"); } catch(e){ applyTheme("dark"); }
     loadPrefs();
     loadFeed().then(function(){ bootHash(); renderBoard(true); });
     startLive();
