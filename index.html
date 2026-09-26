@@ -121,6 +121,8 @@
       position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
       background: #12121a; border: 1px solid var(--line); padding: 11px 14px; border-radius: 12px; display: none; z-index: 40;
     }
+    .dual-grid { display:grid; grid-template-columns:1fr 1fr; gap:22px; align-items:start; }
+    @media (max-width: 980px) { .dual-grid { grid-template-columns:1fr; } }
     .stats-strip { margin-bottom: 8px;  display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin: 8px 0 24px; }
     .sbox { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px 18px; }
         .swap-shell {
@@ -214,7 +216,7 @@
         <div class="sbox"><b>Live coins</b><span id="statCount">—</span></div>
         <div class="sbox"><b>PONS / RH</b><span id="statRh">—</span></div>
         <div class="sbox"><b>pump.fun / SOL</b><span id="statSol">—</span></div>
-        <div class="sbox"><b>Wallet</b><span id="statWallet">Not connected</span></div>
+        <div class="sbox"><b>New · 5 min</b><span id="statFresh">—</span></div>
       </div>
       <div class="wallet-bar">
         <input class="search" id="q" placeholder="Search name, ticker or address" />
@@ -248,13 +250,20 @@
         <div class="table" id="board"></div>
         <button class="btn btn-ghost" id="moreBtn" type="button" onclick="moreBoard()" style="margin-top:16px;display:none">Load more</button>
       </div>
+            <div id="listedStrip" class="table" style="margin:10px 0;display:none"></div>
       <div id="dualBoard" style="display:none">
-        <p class="kicker" style="margin:18px 0 8px">Newest</p>
-        <div class="board-head"><span></span><span>Token</span><span>Age</span><span>MCap</span><span>24h</span><span>Curve</span><span></span></div>
-        <div class="table" id="boardNew"></div>
-        <p class="kicker" style="margin:22px 0 8px">MC $15k+</p>
-        <div class="board-head"><span></span><span>Token</span><span>Age</span><span>MCap</span><span>24h</span><span>Curve</span><span></span></div>
-        <div class="table" id="boardHot"></div>
+        <div class="dual-grid">
+          <div>
+            <p class="kicker" style="margin:18px 0 8px">Newest</p>
+            <div class="board-head"><span></span><span>Token</span><span>Age</span><span>MCap</span><span>24h</span><span>Curve</span></div>
+            <div class="table" id="boardNew"></div>
+          </div>
+          <div>
+            <p class="kicker" style="margin:18px 0 8px">$15k+</p>
+            <div class="board-head"><span></span><span>Token</span><span>Age</span><span>MCap</span><span>24h</span><span>Curve</span></div>
+            <div class="table" id="boardHot"></div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -425,6 +434,12 @@
     function listed() { try { return JSON.parse(localStorage.getItem("dl-listed")||"[]"); } catch(e){ return []; } }
     function setListed(a) { localStorage.setItem("dl-listed", JSON.stringify(a)); }
     function alertsOn() { return localStorage.getItem("dl-alert70") === "1"; }
+    function copyCa(addr, ev) {
+      if (ev) ev.stopPropagation();
+      const s = String(addr||"");
+      if (!s) return;
+      navigator.clipboard.writeText(s).then(()=>toast("Contract copied")).catch(()=>toast(s));
+    }
     function shareCoin(id, ev) {
       if (ev) ev.stopPropagation();
       const url = location.origin + location.pathname + "?coin=" + encodeURIComponent(id);
@@ -655,6 +670,7 @@
     function boardChart(c) { return sparkSvg(c); };
     function chgBits(c) {
       const chg = Number(c.liveChg || 0);
+      if (!Number.isFinite(chg) || Math.abs(chg) < 0.05) return { cls: "", txt: "—" };
       return { cls: chg >= 0 ? "up" : "down", txt: (chg >= 0 ? "+" : "") + chg.toFixed(1) + "%" };
     }
     function pctLine(c) {
@@ -670,7 +686,10 @@
           <span class="mc js-mc">${esc(c.vol || "—")}</span>
           <span class="chg ${ch.cls} js-chg">${ch.txt}</span>
           <span><div class="bar"><i class="js-bar" style="width:${pct(c)}%"></i></div><div class="pct js-pct">${pctLine(c)}</div></span>
-          <span class="slinks"><span class="sbtn" onclick="shareCoin('${esc(c.id)}',event)">Share</span>${socialBtns(c, true)}</span>
+          <span class="slinks">
+            <span class="sbtn" onclick="copyCa('${esc(c.address||"")}',event)">CA</span>
+            <a class="sbtn" href="${esc(c.link||"#")}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Pad</a>
+          </span>
         </div>`;
     }
     function patchTile(el, c) {
@@ -1165,9 +1184,22 @@
       if ($("statCount")) $("statCount").textContent = String(coins.length);
       if ($("statRh")) $("statRh").textContent = String(coins.filter((c)=>c.chain==="rh").length);
       if ($("statSol")) $("statSol").textContent = String(coins.filter((c)=>c.chain==="sol").length);
+      const freshN = coins.filter((c)=> Date.now() - Number(c.created||0) < 5*60000).length;
+      if ($("statFresh")) $("statFresh").textContent = String(freshN);
       paintWallet();
       const status = $("feedStatus");
-      if (status) status.innerHTML = '<span class="live-dot"></span>' + coins.length + " live · " + new Date().toLocaleTimeString();
+      if (status) status.innerHTML = coins.length
+        ? ('<span class="live-dot"></span>' + coins.length + " live · " + freshN + " new in 5 min · " + new Date().toLocaleTimeString())
+        : "Loading feed…";
+      const strip = $("listedStrip");
+      if (strip) {
+        const rows = listed().slice(0, 4);
+        if (!rows.length) strip.style.display = "none";
+        else {
+          strip.style.display = "";
+          strip.innerHTML = "<p class='kicker'>Listed on DualLaunch</p>" + rows.map(tileHtml).join("");
+        }
+      }
       renderBoard(true);
     }
     async function pull(src) {
