@@ -313,6 +313,34 @@
           <span class="go">Continue to pump.fun →</span>
         </a>
       </div>
+
+      <div class="panel" style="max-width:720px;margin-top:28px">
+        <p class="kicker">Dual Launch pack</p>
+        <h2 style="margin:6px 0 8px">Fill once. Sign on both pads.</h2>
+        <p class="lede">DualLaunch does not mint. You copy the same name, ticker and bio into PONS and pump.fun and sign there. Two chains, two contracts.</p>
+        <label>Name</label>
+        <input id="dlName" placeholder="Token name" />
+        <label>Ticker</label>
+        <input id="dlTick" placeholder="TICKER" />
+        <label>Description</label>
+        <textarea id="dlBio" placeholder="Same text on both pads"></textarea>
+        <label>X</label>
+        <input id="dlX" placeholder="https://x.com/…" />
+        <label>Telegram</label>
+        <input id="dlTg" placeholder="https://t.me/…" />
+        <label>Website</label>
+        <input id="dlWeb" placeholder="https://…" />
+        <div class="split" style="margin-top:12px">
+          <button class="btn btn-ghost" type="button" onclick="dualCopy()">Copy pack</button>
+          <button class="btn btn-lime" type="button" onclick="dualOpenBoth()">Open PONS + pump.fun</button>
+        </div>
+        <p class="tick" id="dlPackStatus" style="margin-top:10px"></p>
+        <label style="margin-top:16px">After launch — paste both CAs to link them on DualLaunch</label>
+        <input id="dlCaRh" placeholder="PONS / 0x…" />
+        <input id="dlCaSol" placeholder="pump.fun mint" />
+        <button class="btn btn-ghost" type="button" style="margin-top:8px" onclick="dualLinkCas()">Save pair locally</button>
+      </div>
+
     </section>
 
     <section id="view-coin" class="view"></section>
@@ -402,6 +430,7 @@
         <input id="subWeb" placeholder="https://…" />
         <label>Description</label>
         <textarea id="subDesc" placeholder="Short description"></textarea>
+        <p class="tick" style="margin-top:12px">Boost (optional): a paid pin on DualLaunch Listed only — not DexScreener. Message DualLaunch on X. Free listing stays free.</p>
         <button class="btn btn-lime" type="button" style="margin-top:14px" onclick="submitToken()">List on DualLaunch</button>
         <p class="tick" id="subStatus" style="margin-top:10px"></p>
       </div>
@@ -1673,6 +1702,37 @@
       if ($("cmpOut")) $("cmpOut").innerHTML = cmpCard(a)+cmpCard(b);
     }
 
+
+    function dualPackText(){
+      return [
+        "Name: "+(($("dlName")&&$("dlName").value)||""),
+        "Ticker: "+(($("dlTick")&&$("dlTick").value)||""),
+        "Bio: "+(($("dlBio")&&$("dlBio").value)||""),
+        "X: "+(($("dlX")&&$("dlX").value)||""),
+        "TG: "+(($("dlTg")&&$("dlTg").value)||""),
+        "Web: "+(($("dlWeb")&&$("dlWeb").value)||"")
+      ].join("\n");
+    }
+    function dualCopy(){
+      const s=dualPackText();
+      navigator.clipboard.writeText(s).then(function(){ toast("Pack copied"); if($("dlPackStatus")) $("dlPackStatus").textContent="Copied. Paste into both create forms."; }).catch(function(){ toast(s); });
+    }
+    function dualOpenBoth(){
+      dualCopy();
+      window.open("https://www.ponsfamily.com/launchpad/create","_blank","noopener");
+      window.open("https://pump.fun/create","_blank","noopener");
+    }
+    function dualLinkCas(){
+      const rh=(($("dlCaRh")&&$("dlCaRh").value)||"").trim();
+      const sol=(($("dlCaSol")&&$("dlCaSol").value)||"").trim();
+      if(!rh||!sol){ toast("Need both CAs"); return; }
+      try{
+        const rows=JSON.parse(localStorage.getItem("dl-pairs")||"[]");
+        rows.unshift({ rh:rh, sol:sol, name:(($("dlName")&&$("dlName").value)||""), t:Date.now() });
+        localStorage.setItem("dl-pairs", JSON.stringify(rows.slice(0,40)));
+        toast("Pair saved on this device");
+      }catch(e){ toast("Could not save"); }
+    }
     function closeNav(){ document.body.classList.remove("nav-open"); }
     function toggleNav(){ document.body.classList.toggle("nav-open"); }
     loadPrefs();
