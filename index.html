@@ -225,6 +225,7 @@
       <button id="nav-swap" onclick="show('swap')">Swap</button>
       <button id="nav-listed" onclick="show('listed')">Listed</button>
       <button id="nav-submit" onclick="show('submit')">Submit</button>
+      <button id="nav-tools" onclick="show('tools')">Terminal</button>
       <button id="nav-legal" onclick="show('legal')">Disclaimer</button>
     </div>
     <div class="wallets">
@@ -405,6 +406,49 @@
         <p class="tick" id="subStatus" style="margin-top:10px"></p>
       </div>
     </section>
+    
+    <section id="view-tools" class="view">
+      <p class="kicker">Terminal</p>
+      <h1>Work a contract</h1>
+      <p class="lede">This is the desk next to the board. Paste a CA, keep a watchlist with browser alerts, compare two coins, save notes. Trading still happens on PONS or pump.fun.</p>
+      <div class="stats-strip">
+        <div class="sbox"><b>Watchlist</b><span id="termWatchN">0</span></div>
+        <div class="sbox"><b>Recent CAs</b><span id="termRecentN">0</span></div>
+        <div class="sbox"><b>Alerts</b><span id="termAlertN">off</span></div>
+      </div>
+      <div class="panel" style="max-width:720px;margin-top:8px">
+        <label>Contract</label>
+        <input id="toolCa" placeholder="Solana mint or 0x…" />
+        <div class="split" style="margin-top:10px;max-width:720px">
+          <button class="btn btn-lime" type="button" onclick="runTool()">Resolve</button>
+          <button class="btn btn-ghost" type="button" onclick="toolPaste()">Paste</button>
+          <button class="btn btn-ghost" type="button" onclick="openStack()">Open pad + chart</button>
+        </div>
+        <div id="toolOut" style="margin-top:16px"></div>
+        <p class="kicker" style="margin-top:16px">Recent</p>
+        <div id="toolRecent" class="tick"></div>
+      </div>
+      <div class="panel" style="max-width:720px;margin-top:16px">
+        <strong>Watchdesk</strong>
+        <p class="tick">Coins you starred on the board. Optional browser ping at $15k or 90% curve.</p>
+        <button class="btn btn-ghost" type="button" onclick="enableAlerts()">Enable alerts</button>
+        <div id="watchDesk" class="table" style="margin-top:12px"></div>
+      </div>
+      <div class="panel" style="max-width:720px;margin-top:16px">
+        <strong>Compare</strong>
+        <div class="split" style="max-width:720px;margin-top:8px">
+          <input id="cmpA" placeholder="First ticker or CA" />
+          <input id="cmpB" placeholder="Second ticker or CA" />
+        </div>
+        <button class="btn btn-ghost" type="button" style="margin-top:8px" onclick="runCompare()">Compare</button>
+        <div id="cmpOut" class="split" style="margin-top:14px"></div>
+      </div>
+      <div class="panel" style="max-width:720px;margin-top:16px">
+        <strong>Notes</strong>
+        <p class="tick">Only on this device.</p>
+        <textarea id="termNotes" placeholder="CAs, reminders…" style="min-height:120px"></textarea>
+      </div>
+    </section>
     <section id="view-legal" class="view">
       <p class="kicker">Legal</p>
       <h1>Disclaimer</h1>
@@ -439,6 +483,8 @@
       if ($("nav-swap")) $("nav-swap").classList.toggle("on", name === "swap");
       if ($("nav-listed")) $("nav-listed").classList.toggle("on", name === "listed");
       if ($("nav-submit")) $("nav-submit").classList.toggle("on", name === "submit");
+      if ($("nav-tools")) $("nav-tools").classList.toggle("on", name === "tools");
+      if (name === "tools") { renderTerminal(); try { history.replaceState(null,"","#tools"); } catch(e){} }
       if (name === "coin") { renderCoin(id); try { history.replaceState(null,"","#coin="+encodeURIComponent(id)); } catch(e){} }
       else if (name === "listed") { renderListed(); try { history.replaceState(null,"","#listed"); } catch(e){} }
       else if (name === "submit") { try { history.replaceState(null,"","#submit"); } catch(e){} }
@@ -1252,7 +1298,10 @@
     function startLive() {
       if (liveTimer) clearInterval(liveTimer);
       const ms = document.hidden ? 15000 : 2500;
-      liveTimer = setInterval(loadFeed, ms);
+      liveTimer = setInterval(function(){
+        const r = loadFeed();
+        if (r && r.then) r.then(function(){ checkWatchAlerts(); if ($("view-tools") && $("view-tools").classList.contains("on")) renderTerminal(); });
+      }, ms);
     }
     document.addEventListener("visibilitychange", startLive);
 
@@ -1422,6 +1471,134 @@
         if (prev && f) { prev.src = URL.createObjectURL(f); prev.style.display = "block"; }
       });
     }
+
+
+    function recents(){ try { return JSON.parse(localStorage.getItem("dl-recent")||"[]"); } catch(e){ return []; } }
+    function pushRecent(addr){
+      const a=String(addr||"").trim(); if(!a) return;
+      const list=[a].concat(recents().filter(x=>x!==a)).slice(0,12);
+      try { localStorage.setItem("dl-recent", JSON.stringify(list)); } catch(e){}
+    }
+    function renderRecent(){
+      const el=$("toolRecent"); if(!el) return;
+      const list=recents();
+      if ($("termRecentN")) $("termRecentN").textContent=String(list.length);
+      el.innerHTML = list.length ? list.map(a=>`<span class="sbtn" onclick="$('toolCa').value='${esc(a)}';runTool()">${esc(a.slice(0,6))}…${esc(a.slice(-4))}</span>`).join(" ") : "None yet.";
+    }
+    let alertOn=false, alertSeen={};
+    function enableAlerts(){
+      if (!("Notification" in window)) { toast("This browser has no notifications"); return; }
+      Notification.requestPermission().then(function(p){
+        alertOn = p==="granted";
+        if ($("termAlertN")) $("termAlertN").textContent = alertOn ? "on" : "off";
+        toast(alertOn ? "Alerts on for this device" : "Permission denied");
+      });
+    }
+    function checkWatchAlerts(){
+      if (!alertOn) return;
+      pins().forEach(function(id){
+        const c=coins.find(x=>x.id===id); if(!c) return;
+        const hit15 = Number(c.mcap||0)>=15000;
+        const hitC = pct(c)>=90;
+        const key = id+(hit15?"-15":"")+(hitC?"-c":"");
+        if ((hit15||hitC) && !alertSeen[key]) {
+          alertSeen[key]=1;
+          try { new Notification(c.symbol+" on DualLaunch", { body: (hit15?"MC $15k+. ":"")+(hitC?"Curve 90%+. ":"")+"Not a call." }); } catch(e){}
+        }
+      });
+    }
+    function renderWatchDesk(){
+      const el=$("watchDesk"); if(!el) return;
+      const rows=pins().map(id=>coins.find(c=>c.id===id)).filter(Boolean);
+      if ($("termWatchN")) $("termWatchN").textContent=String(rows.length);
+      if (!rows.length) { el.innerHTML="<p class='lede'>Star coins on the board first.</p>"; return; }
+      el.innerHTML=rows.map(tileHtml).join("");
+    }
+    function renderTerminal(){
+      renderRecent();
+      renderWatchDesk();
+      if ($("termAlertN")) $("termAlertN").textContent = alertOn ? "on" : "off";
+      const n=$("termNotes");
+      if (n && !n.dataset.bound) {
+        n.dataset.bound="1";
+        try { n.value=localStorage.getItem("dl-notes")||""; } catch(e){}
+        n.addEventListener("input", function(){ try { localStorage.setItem("dl-notes", n.value); } catch(e){} });
+      }
+    }
+    function openStack(){
+      const raw=(( $("toolCa")&&$("toolCa").value)||"").trim();
+      if (!raw) { toast("Paste a CA first"); return; }
+      const chain=detectChain(raw);
+      const on=findCoin(raw);
+      const pad = (chain==="rh"||(on&&on.chain==="rh"))
+        ? ("https://www.ponsfamily.com/")
+        : ("https://pump.fun/coin/"+encodeURIComponent(on&&on.address||raw));
+      const dex = (chain==="rh"||(on&&on.chain==="rh"))
+        ? ("https://dexscreener.com/robinhood/"+encodeURIComponent(on&&on.address||raw))
+        : ("https://dexscreener.com/solana/"+encodeURIComponent(on&&on.address||raw));
+      window.open(pad,"_blank"); window.open(dex,"_blank");
+    }
+    function detectChain(addr){
+      const a=String(addr||"").trim();
+      if (/^0x[a-fA-F0-9]{40}$/.test(a)) return "rh";
+      if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a)) return "sol";
+      return "";
+    }
+    function findCoin(q){
+      const s=String(q||"").trim().toLowerCase();
+      if (!s) return null;
+      return coins.find(c => String(c.address||"").toLowerCase()===s || String(c.symbol||"").toLowerCase()===s.replace("$","") || String(c.name||"").toLowerCase()===s) || null;
+    }
+    async function toolPaste(){
+      try {
+        const t = await navigator.clipboard.readText();
+        if ($("toolCa")) $("toolCa").value = (t||"").trim();
+      } catch(e) { toast("Paste the CA in the field"); }
+    }
+    function runTool(){
+      const raw = (($("toolCa")&&$("toolCa").value)||"").trim();
+      const box = $("toolOut");
+      if (!box) return;
+      if (!raw) { box.innerHTML = "<p class='lede'>Paste a contract first.</p>"; return; }
+      pushRecent(raw);
+      renderRecent();
+      const chain = detectChain(raw);
+      const on = findCoin(raw);
+      const pad = chain==="rh" || (on&&on.chain==="rh")
+        ? ("https://www.ponsfamily.com/token/" + encodeURIComponent(on&&on.address||raw))
+        : ("https://pump.fun/coin/" + encodeURIComponent(on&&on.address||raw));
+      const dex = (chain==="rh"||(on&&on.chain==="rh"))
+        ? ("https://dexscreener.com/robinhood/" + encodeURIComponent(on&&on.address||raw))
+        : ("https://dexscreener.com/solana/" + encodeURIComponent(on&&on.address||raw));
+      const bird = (chain!=="rh" && !(on&&on.chain==="rh"))
+        ? ("https://birdeye.so/token/" + encodeURIComponent(on&&on.address||raw) + "?chain=solana")
+        : "";
+      const share = location.origin + "/?coin=" + encodeURIComponent(on ? on.id : ((chain||"sol")+"-"+raw.toLowerCase()));
+      box.innerHTML = `
+        <p class="tick">${esc(chain==="rh"?"Robinhood / PONS":chain==="sol"?"Solana / pump.fun":"Unknown format")} ${on?("· on board: "+esc(on.symbol)): "· not on this feed yet"}</p>
+        ${on?`<p><strong>${esc(on.name)}</strong> · ${esc(on.vol||"—")} · ${esc(pctLine(on))}</p>`:""}
+        <div class="split" style="margin-top:10px">
+          <button class="btn btn-ghost" type="button" onclick="copyCa('${esc(raw)}')">Copy CA</button>
+          <a class="btn btn-lime" target="_blank" rel="noopener" href="${esc(pad)}">Open pad</a>
+          <a class="btn btn-ghost" target="_blank" rel="noopener" href="${esc(dex)}">DexScreener</a>
+          ${bird?`<a class="btn btn-ghost" target="_blank" rel="noopener" href="${esc(bird)}">Birdeye</a>`:""}
+          ${on?`<button class="btn btn-ghost" type="button" onclick="togglePin('${esc(on.id)}')">Watchlist</button>`:""}
+        </div>
+        <p class="tick" style="margin-top:10px">Share on X: <a href="${esc(share)}" style="color:var(--lime)">${esc(share)}</a></p>
+      `;
+    }
+    function cmpCard(c){
+      if (!c) return "<div class='panel'><p class='lede'>Not on the board.</p></div>";
+      return `<div class="panel"><strong>${esc(c.name)}</strong><p class="tick">${esc(c.symbol)} · ${c.chain==="rh"?"PONS":"pump.fun"}</p>
+        <p>MC ${esc(c.vol||"—")}</p><p>${esc(age(c.created))}</p><p>${esc(pctLine(c))}</p>
+        <button class="btn btn-ghost" type="button" onclick="show('coin','${esc(c.id)}')">Open</button></div>`;
+    }
+    function runCompare(){
+      const a = findCoin(($("cmpA")&&$("cmpA").value)||"");
+      const b = findCoin(($("cmpB")&&$("cmpB").value)||"");
+      if ($("cmpOut")) $("cmpOut").innerHTML = cmpCard(a)+cmpCard(b);
+    }
+
     function closeNav(){ document.body.classList.remove("nav-open"); }
     function toggleNav(){ document.body.classList.toggle("nav-open"); }
     loadPrefs();
