@@ -160,7 +160,56 @@ module.exports = async function handler(req, res) {
         pump.push(c);
       });
 
-    res.status(200).json({ ok: true, coins: pons.concat(pump) });
+    function usd(n) {
+      const v = Number(n || 0);
+      if (!v) return "—";
+      if (v >= 1e6) return "$" + (v/1e6).toFixed(2) + "M";
+      if (v >= 1e3) return "$" + Math.round(v).toLocaleString();
+      return "$" + v.toFixed(2);
+    }
+
+    async function dexMap(addresses) {
+      const out = {};
+      const uniq = addresses.filter(Boolean).filter((a,i,arr)=>arr.indexOf(a)===i);
+      for (let i = 0; i < uniq.length; i += 25) {
+        const chunk = uniq.slice(i, i + 25);
+        try {
+          const r = await fetch("https://api.dexscreener.com/latest/dex/tokens/" + chunk.join(","));
+          const j = await r.json();
+          (j.pairs || []).forEach((p) => {
+            const addr = String((p.baseToken && p.baseToken.address) || "").toLowerCase();
+            if (!addr) return;
+            const mc = Number(p.marketCap || p.fdv || 0);
+            const prev = out[addr];
+            if (prev && Number(prev.marketCap||0) >= mc) return;
+            out[addr] = {
+              marketCap: mc,
+              priceUsd: Number(p.priceUsd || 0),
+              pair: p.pairAddress || "",
+              chg: p.priceChange && p.priceChange.h24
+            };
+          });
+        } catch (e) {}
+      }
+      return out;
+    }
+
+    let coins = pons.concat(pump);
+    const dx = await dexMap(coins.map((c) => c.address));
+    coins = coins.map((c) => {
+      const d = dx[String(c.address||"").toLowerCase()];
+      if (!d) return c;
+      if (!c.mcap && d.marketCap) {
+        c.mcap = d.marketCap;
+        c.vol = usd(d.marketCap);
+      }
+      if (d.priceUsd) c.priceUsd = d.priceUsd;
+      if (d.pair) c.pair = d.pair;
+      if (d.chg != null) c.chg24 = Number(d.chg);
+      return c;
+    });
+
+    res.status(200).json({ ok: true, coins });
   } catch (e) {
     res.status(200).json({ ok: false, error: String(e.message || e), coins: [] });
   }
