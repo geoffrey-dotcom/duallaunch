@@ -837,25 +837,43 @@
 
     function paintCandles(canvas, rows) {
       if (!canvas || !rows || !rows.length) return false;
+      const box = canvas.parentElement;
+      const cssW = Math.max(320, (box && box.clientWidth) || 640);
+      const cssH = 280;
+      const dpr = window.devicePixelRatio || 1;
+      canvas.style.width = cssW + "px";
+      canvas.style.height = cssH + "px";
+      canvas.width = Math.floor(cssW * dpr);
+      canvas.height = Math.floor(cssH * dpr);
       const w = canvas.width, h = canvas.height;
       const ctx = canvas.getContext("2d");
       ctx.fillStyle = "#07070c"; ctx.fillRect(0,0,w,h);
-      const lows = rows.map(r=>r.l), highs = rows.map(r=>r.h);
-      const min = Math.min.apply(null, lows), max = Math.max.apply(null, highs);
-      const span = max-min || 1;
-      const bw = Math.max(3, (w-20)/rows.length - 2);
+      const pad = 16 * dpr;
+      const lows = rows.map(r=>Number(r.l||r.c||0));
+      const highs = rows.map(r=>Number(r.h||r.c||0));
+      let min = Math.min.apply(null, lows), max = Math.max.apply(null, highs);
+      if (!(max > min)) { min = min * 0.98; max = max * 1.02 || 1; }
+      const span = max - min;
+      const n = rows.length;
+      const slot = (w - pad * 2) / n;
+      const bw = Math.max(2 * dpr, Math.min(7 * dpr, slot * 0.55));
+      ctx.strokeStyle = "#242433"; ctx.lineWidth = dpr;
+      for (let g = 0; g < 4; g++) {
+        const y = pad + g * ((h-pad*2)/3);
+        ctx.beginPath(); ctx.moveTo(pad,y); ctx.lineTo(w-pad,y); ctx.stroke();
+      }
       rows.forEach(function(r,i){
-        const x = 10 + i * ((w-20)/rows.length);
-        const yH = 10 + (1-(r.h-min)/span)*(h-20);
-        const yL = 10 + (1-(r.l-min)/span)*(h-20);
-        const yO = 10 + (1-(r.o-min)/span)*(h-20);
-        const yC = 10 + (1-(r.c-min)/span)*(h-20);
-        const up = r.c >= r.o;
+        const o=Number(r.o||r.c), c=Number(r.c), hi=Number(r.h||c), lo=Number(r.l||c);
+        const x = pad + slot * i + slot/2;
+        const y = function(v){ return pad + (1 - (v-min)/span) * (h-pad*2); };
+        const up = c >= o;
         ctx.strokeStyle = up ? "#b8ff3a" : "#ff6b9a";
         ctx.fillStyle = up ? "#b8ff3a" : "#ff6b9a";
-        ctx.beginPath(); ctx.moveTo(x+bw/2, yH); ctx.lineTo(x+bw/2, yL); ctx.stroke();
-        const top = Math.min(yO,yC), bot = Math.abs(yC-yO)||1;
-        ctx.fillRect(x, top, bw, bot);
+        ctx.lineWidth = Math.max(1, dpr);
+        ctx.beginPath(); ctx.moveTo(x, y(hi)); ctx.lineTo(x, y(lo)); ctx.stroke();
+        const top = Math.min(y(o), y(c));
+        const bh = Math.max(2 * dpr, Math.abs(y(c)-y(o)));
+        ctx.fillRect(x - bw/2, top, bw, bh);
       });
       return true;
     }
@@ -864,7 +882,7 @@
       const canvas = $("dlCandles");
       if (!canvas || !c) return;
       try {
-        const r = await fetch("/api/candles?chain=" + encodeURIComponent(c.chain) + "&token=" + encodeURIComponent(c.address||""));
+        const r = await fetch("/api/candles?chain=" + encodeURIComponent(c.chain) + "&token=" + encodeURIComponent(c.address||"") + "&id=" + encodeURIComponent(c.id||""));
         const j = await r.json();
         const rows = j.candles || [];
         if (!rows.length) {
@@ -874,7 +892,7 @@
           return;
         }
         paintCandles(canvas, rows);
-        if (note) note.textContent = rows.length + " DualLaunch candles · 5m";
+        if (note) note.textContent = rows.length + " candles · " + (j.source||"feed");
       } catch (e) {
         if (note) note.textContent = "Candle feed down. Use Open DexScreener.";
       }
