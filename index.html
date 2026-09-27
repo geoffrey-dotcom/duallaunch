@@ -469,6 +469,13 @@
     const PONS_CREATE = "https://www.ponsfamily.com/launchpad/create";
     const PUMP_CREATE = "https://pump.fun/create";
     let chain = "rh", filter = "all", sortBy = "new", ageBy = "all", coins = [], boardLimit = 24;
+    function money(n){
+      const v=Number(n||0);
+      if(!v) return "—";
+      if(v>=1e6) return "$"+(v/1e6).toFixed(2)+"M";
+      if(v>=1e3) return "$"+Math.round(v).toLocaleString();
+      return "$"+v.toFixed(2);
+    }
     const $ = (id) => document.getElementById(id);
     const esc = (s) => String(s || "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
     function toast(msg) { const t = $("toast"); t.textContent = msg; t.style.display = "block"; setTimeout(() => t.style.display = "none", 3800); }
@@ -743,7 +750,7 @@
     };
     function boardChart(c) { return sparkSvg(c); };
     function chgBits(c) {
-      const chg = Number(c.liveChg || 0);
+      const chg = Number(c.chg24 != null ? c.chg24 : c.liveChg || 0);
       if (!Number.isFinite(chg) || Math.abs(chg) < 0.05) return { cls: "", txt: "—" };
       return { cls: chg >= 0 ? "up" : "down", txt: (chg >= 0 ? "+" : "") + chg.toFixed(1) + "%" };
     }
@@ -757,7 +764,7 @@
           <span class="sbtn" onclick="togglePin('${esc(c.id)}',event)">${isPinned(c.id)?"★":"☆"}</span>
           <span class="ident">${av(c)}<span><div class="name">${esc(c.name)}</div><div class="tick">$${esc(c.symbol)} · ${c.chain === "rh" ? "PONS" : "PUMP"}</div></span></span>
           <span class="tick js-age">${age(c.created)}</span>
-          <span class="mc js-mc">${esc(c.vol || "—")}</span>
+          <span class="mc js-mc">${esc(c.mcap ? money(c.mcap) : (c.vol || "—"))}</span>
           <span class="chg ${ch.cls} js-chg">${ch.txt}</span>
           <span><div class="bar"><i class="js-bar" style="width:${pct(c)}%"></i></div><div class="pct js-pct">${pctLine(c)}</div></span>
           <span class="slinks">
@@ -773,7 +780,7 @@
       const ageEl = el.querySelector(".js-age");
       if (ageEl) ageEl.textContent = age(c.created);
       const mc = el.querySelector(".js-mc");
-      if (mc) mc.textContent = c.vol || "—";
+      if (mc) mc.textContent = (c.mcap ? money(c.mcap) : (c.vol || "—"));
       const bar = el.querySelector(".js-bar");
       if (bar) bar.style.width = pct(c) + "%";
       const pl = el.querySelector(".js-pct");
@@ -882,17 +889,18 @@
       const canvas = $("dlCandles");
       if (!canvas || !c) return;
       try {
-        const r = await fetch("/api/candles?chain=" + encodeURIComponent(c.chain) + "&token=" + encodeURIComponent(c.address||"") + "&id=" + encodeURIComponent(c.id||""));
+        const r = await fetch("/api/candles?chain=" + encodeURIComponent(c.chain) + "&token=" + encodeURIComponent(c.address||"") + "&id=" + encodeURIComponent(c.id||"") + "&pair=" + encodeURIComponent(c.pair||""));
         const j = await r.json();
         const rows = j.candles || [];
-        if (!rows.length) {
-          if (note) note.textContent = "No pool candles yet. Open DexScreener.";
-          const iframe = $("dexChart");
+        const iframe = $("dexChart");
+        if (rows.length >= 3) {
+          paintCandles(canvas, rows);
+          if (note) note.textContent = rows.length + " candles · " + (j.source||"pool") + (c.mcap ? " · MC " + money(c.mcap) : "");
+        } else {
+          if (canvas) canvas.style.display = "none";
           if (iframe) { iframe.style.display="block"; iframe.style.height="420px"; iframe.style.minHeight="280px"; }
-          return;
+          if (note) note.textContent = "Live pair chart · " + (c.mcap ? "MC " + money(c.mcap) : "mcap pending");
         }
-        paintCandles(canvas, rows);
-        if (note) note.textContent = rows.length + " candles · " + (j.source||"feed");
       } catch (e) {
         if (note) note.textContent = "Candle feed down. Use Open DexScreener.";
       }
@@ -916,7 +924,8 @@
               <div class="stat"><b>Progress</b>${pct(c).toFixed(0)}%</div>
               <div class="stat"><b>Raised</b>${Number(c.raised).toFixed(2)} ${UNIT[c.chain]}</div>
               <div class="stat"><b>Target</b>${goalOf(c)} ${UNIT[c.chain]}</div>
-              <div class="stat"><b>Market</b>${esc(c.vol || "—")}</div>
+              <div class="stat"><b>Market</b>${esc(c.mcap ? money(c.mcap) : (c.vol || "—"))}</div>
+              <div class="stat"><b>Price</b>${c.priceUsd ? ("$"+Number(c.priceUsd).toPrecision(4)) : "—"}</div>
             </div>
             <div class="chart-wrap">
               <canvas id="dlCandles" class="chart-frame" width="900" height="360"></canvas>
