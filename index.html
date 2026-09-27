@@ -834,6 +834,51 @@
       board.appendChild(frag);
       board.dataset.ids = ids;
     }
+
+    function paintCandles(canvas, rows) {
+      if (!canvas || !rows || !rows.length) return false;
+      const w = canvas.width, h = canvas.height;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#07070c"; ctx.fillRect(0,0,w,h);
+      const lows = rows.map(r=>r.l), highs = rows.map(r=>r.h);
+      const min = Math.min.apply(null, lows), max = Math.max.apply(null, highs);
+      const span = max-min || 1;
+      const bw = Math.max(3, (w-20)/rows.length - 2);
+      rows.forEach(function(r,i){
+        const x = 10 + i * ((w-20)/rows.length);
+        const yH = 10 + (1-(r.h-min)/span)*(h-20);
+        const yL = 10 + (1-(r.l-min)/span)*(h-20);
+        const yO = 10 + (1-(r.o-min)/span)*(h-20);
+        const yC = 10 + (1-(r.c-min)/span)*(h-20);
+        const up = r.c >= r.o;
+        ctx.strokeStyle = up ? "#b8ff3a" : "#ff6b9a";
+        ctx.fillStyle = up ? "#b8ff3a" : "#ff6b9a";
+        ctx.beginPath(); ctx.moveTo(x+bw/2, yH); ctx.lineTo(x+bw/2, yL); ctx.stroke();
+        const top = Math.min(yO,yC), bot = Math.abs(yC-yO)||1;
+        ctx.fillRect(x, top, bw, bot);
+      });
+      return true;
+    }
+    async function loadDlCandles(c) {
+      const note = $("chartNote");
+      const canvas = $("dlCandles");
+      if (!canvas || !c) return;
+      try {
+        const r = await fetch("/api/candles?chain=" + encodeURIComponent(c.chain) + "&token=" + encodeURIComponent(c.address||""));
+        const j = await r.json();
+        const rows = j.candles || [];
+        if (!rows.length) {
+          if (note) note.textContent = "No pool candles yet. Open DexScreener.";
+          const iframe = $("dexChart");
+          if (iframe) { iframe.style.display="block"; iframe.style.height="420px"; iframe.style.minHeight="280px"; }
+          return;
+        }
+        paintCandles(canvas, rows);
+        if (note) note.textContent = rows.length + " DualLaunch candles · 5m";
+      } catch (e) {
+        if (note) note.textContent = "Candle feed down. Use Open DexScreener.";
+      }
+    }
     async function renderCoin(id) {
       const c = coins.find((x) => x.id === id);
       if (!c) return;
@@ -856,8 +901,9 @@
               <div class="stat"><b>Market</b>${esc(c.vol || "—")}</div>
             </div>
             <div class="chart-wrap">
-              <iframe class="chart-frame" id="dexChart" title="DexScreener" src="${esc(dex)}" allow="clipboard-write; fullscreen"></iframe>
-              <p class="tick" id="chartNote" style="display:none;padding:12px">Chart still loading or no pair yet. Use Open DexScreener.</p>
+              <canvas id="dlCandles" class="chart-frame" width="900" height="360"></canvas>
+              <p class="tick" id="chartNote" style="padding:12px">DualLaunch candles from pool trades. Dex embed is optional.</p>
+              <iframe class="chart-frame" id="dexChart" title="DexScreener" src="${esc(dex)}" style="height:0;min-height:0;display:none"></iframe>
             </div>
             <div class="bar" style="height:8px;margin-top:16px"><i style="width:${pct(c)}%"></i></div>
             <p class="lede" style="margin-top:14px">${esc((c.desc || "No description.").slice(0, 280))}</p>
@@ -888,6 +934,7 @@
         if (n && document.getElementById("view-coin").classList.contains("on")) n.style.display = "block";
       }, 8000);
       enrichCoin(c);
+      loadDlCandles(c);
     }
     let tradeTimer = null;
     async function enrichCoin(c) {
