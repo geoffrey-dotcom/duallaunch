@@ -1279,7 +1279,7 @@
     }
     async function connectSol() {
       const sol = solProvider();
-      if (!sol) { toast("No Solana wallet here. Use Phantom / Solflare / Backpack buttons on Swap, "Use Phantom / Solflare / Backpack on Swap, or open this site inside the wallet browser.");); return; }
+      if (!sol) { toast("No Solana wallet here. Use Phantom, Solflare or Backpack on Swap, or open this site inside the wallet browser."); return; }
       try {
         const res = await sol.connect();
         solWalletObj = sol;
