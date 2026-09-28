@@ -130,6 +130,7 @@
       background: transparent; border: 0; overflow: hidden; border-radius: 16px;
     }
     #jupiter-plugin, #jupiter-plugin > div { width: 100% !important; background: transparent !important; }
+    #jupiter-plugin a[href*="jup.ag"], #jupiter-plugin [class*="powered"], #jupiter-plugin [class*="Powered"] { display:none !important; }
     .launch-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; max-width:760px; margin-top:8px; }
     .launch-card {
       display:flex; flex-direction:column; gap:10px; text-decoration:none; color:inherit;
@@ -333,8 +334,7 @@
           <button class="btn btn-ghost" type="button" onclick="connectSolNamed('backpack')">Backpack</button>
         </div>
         <div id="jupiter-plugin"></div>
-        <p class="tick" style="margin-top:10px">Plugin uses the wallet in this browser. If Connect fails, open Jupiter.</p>
-        <a class="btn btn-lime" href="https://jup.ag/swap" target="_blank" rel="noopener" style="margin-top:10px">Open Jupiter</a>
+        <p class="tick" style="margin-top:10px">Connect a Solana wallet on this page first (extension or the wallet’s in-app browser). Desktop Chrome without an extension cannot see wallets.</p>
       </div>
       <div id="rhSwap" class="panel" style="max-width:480px;display:none">
         <p class="tick">Paste a PONS token address, or open a coin on the board and use Open coin.</p>
@@ -1209,8 +1209,29 @@
     }
     function solProvider() {
       const w = window;
-      const list = [w.solana, w.phantom && w.phantom.solana, w.solflare, w.backpack, w.glow];
+      const list = [
+        w.phantom && w.phantom.solana,
+        w.solflare,
+        w.backpack,
+        w.glow,
+        w.solana,
+        w.okxwallet && w.okxwallet.solana,
+        w.bitkeep && w.bitkeep.solana,
+        w.magicEden && w.magicEden.solana,
+        w.nightly && w.nightly.solana,
+        w.trustwallet && w.trustwallet.solana
+      ];
       return list.find((p) => p && (p.connect || p.publicKey)) || null;
+    }
+    let solWalletObj = null;
+    function passSolToJup() {
+      if (!window.Jupiter || !solWalletObj) return;
+      try {
+        window.Jupiter.syncProps({
+          enableWalletPassthrough: true,
+          passthroughWallet: solWalletObj
+        });
+      } catch (e) {}
     }
     async function connectEvm() {
       const eth = evmProvider();
@@ -1247,24 +1268,27 @@
       }
       try {
         const res = await sol.connect();
+        solWalletObj = sol;
         solAddr = (res.publicKey || sol.publicKey).toString();
         $("btnSolW").textContent = short(solAddr) + " · SOL";
         paintWallet();
         refreshSolBal();
+        passSolToJup();
         toast(name + " connected.");
       } catch (e) { toast(e.message || "Cancelled"); }
     }
     async function connectSol() {
       const sol = solProvider();
-      if (!sol) { toast("No Solana wallet here. Use Phantom / Solflare / Backpack buttons on Swap, or Open Jupiter."); return; }
+      if (!sol) { toast("No Solana wallet here. Use Phantom / Solflare / Backpack buttons on Swap, "Use Phantom / Solflare / Backpack on Swap, or open this site inside the wallet browser.");); return; }
       try {
         const res = await sol.connect();
+        solWalletObj = sol;
         solAddr = (res.publicKey || sol.publicKey).toString();
         $("btnSolW").textContent = short(solAddr) + " · SOL";
         paintWallet();
         refreshSolBal();
+        passSolToJup();
         toast("Solana connected.");
-        show('wallet');
       } catch (e) { toast(e.message || "Solana cancelled"); }
     }
     $("btnEvm").onclick = connectEvm;
@@ -1284,8 +1308,8 @@
             displayMode: "integrated",
             integratedTargetId: "jupiter-plugin",
             defaultExplorer: "Solscan",
-            enableWalletPassthrough: false,
-            branding: { name: "DualLaunch" },
+            enableWalletPassthrough: true,
+            branding: { name: "DualLaunch", logoUri: "/logo.jpg" },
             containerStyles: { width: "100%", borderRadius: "16px", background: "transparent" }
           };
           if (JUP_REFERRAL) {
@@ -1293,6 +1317,7 @@
           }
           window.Jupiter.init(cfg);
           jupReady = true;
+          passSolToJup();
         } catch (e) { toast("Jupiter plugin failed to start"); }
       }
     }
