@@ -332,6 +332,8 @@
           <button class="btn btn-ghost" type="button" onclick="connectSolNamed('phantom')">Phantom</button>
           <button class="btn btn-ghost" type="button" onclick="connectSolNamed('solflare')">Solflare</button>
           <button class="btn btn-ghost" type="button" onclick="connectSolNamed('backpack')">Backpack</button>
+          <button class="btn btn-ghost" type="button" onclick="connectSolNamed('trust')">Trust</button>
+          <button class="btn btn-lime" type="button" onclick="connectSol()">Any detected</button>
         </div>
         <div id="jupiter-plugin"></div>
         <p class="tick" style="margin-top:10px">Connect a Solana wallet on this page first (extension or the wallet’s in-app browser). Desktop Chrome without an extension cannot see wallets.</p>
@@ -358,6 +360,7 @@
         <div class="split" id="mobileWalletBtns" style="margin-top:8px;max-width:480px">
           <a class="btn btn-lime" id="openPhantom" href="#" target="_blank" rel="noopener">Open in Phantom</a>
           <a class="btn btn-ghost" id="openSolflare" href="#" target="_blank" rel="noopener">Open in Solflare</a>
+          <a class="btn btn-ghost" id="openTrust" href="#" target="_blank" rel="noopener">Open in Trust</a>
           <a class="btn btn-ghost" id="openMetamask" href="#" target="_blank" rel="noopener">Open in MetaMask</a>
         </div>
         <button class="btn btn-ghost" type="button" onclick="scanHoldings()">Scan board-tokens</button>
@@ -1207,21 +1210,29 @@
       }
       return e;
     }
+    function solKey(sol) {
+      if (!sol) return "";
+      const k = sol.publicKey;
+      if (!k) return "";
+      return typeof k.toString === "function" ? k.toString() : String(k);
+    }
     function solProvider() {
       const w = window;
       const list = [
         w.phantom && w.phantom.solana,
+        w.solana && w.solana.isPhantom ? w.solana : null,
         w.solflare,
         w.backpack,
         w.glow,
-        w.solana,
+        w.trustwallet && (w.trustwallet.solana || w.trustwallet),
+        w.solana && w.solana.isTrust ? w.solana : null,
         w.okxwallet && w.okxwallet.solana,
         w.bitkeep && w.bitkeep.solana,
         w.magicEden && w.magicEden.solana,
         w.nightly && w.nightly.solana,
-        w.trustwallet && w.trustwallet.solana
+        w.solana
       ];
-      return list.find((p) => p && (p.connect || p.publicKey)) || null;
+      return list.find(function(p){ return p && (p.connect || p.request || p.publicKey); }) || null;
     }
     let solWalletObj = null;
     function passSolToJup() {
@@ -1253,50 +1264,66 @@
     }
     function namedSol(name) {
       const w = window;
-      if (name === "phantom") return (w.phantom && w.phantom.solana) || (w.solana && w.solana.isPhantom ? w.solana : null);
-      if (name === "solflare") return w.solflare || null;
+      if (name === "phantom") return (w.phantom && w.phantom.solana) || (w.solana && (w.solana.isPhantom || !w.solflare) ? w.solana : null);
+      if (name === "solflare") return w.solflare || (w.solana && w.solana.isSolflare ? w.solana : null);
       if (name === "backpack") return w.backpack || null;
+      if (name === "trust") return (w.trustwallet && (w.trustwallet.solana || w.trustwallet)) || (w.solana && w.solana.isTrust ? w.solana : null) || (w.solana && !w.solana.isPhantom ? w.solana : null);
       return solProvider();
+    }
+    async function attachSol(sol, label) {
+      if (!sol) {
+        toast("No wallet injected. Open duallaunch.xyz inside Phantom or Trust browser, or install the desktop extension.");
+        return false;
+      }
+      try {
+        let key = solKey(sol);
+        if (!key && typeof sol.connect === "function") {
+          const res = await sol.connect({ onlyIfTrusted: false });
+          key = (res && res.publicKey) ? (res.publicKey.toString ? res.publicKey.toString() : String(res.publicKey)) : solKey(sol);
+        }
+        if (!key && typeof sol.request === "function") {
+          const res = await sol.request({ method: "connect" });
+          key = solKey(sol) || (res && res.publicKey && String(res.publicKey)) || "";
+        }
+        if (!key) { toast("Wallet opened but sent no address. Approve the connect popup."); return false; }
+        solWalletObj = sol;
+        solAddr = key;
+        if ($("btnSolW")) $("btnSolW").textContent = short(solAddr) + " · SOL";
+        paintWallet();
+        refreshSolBal();
+        passSolToJup();
+        toast((label || "Wallet") + " connected");
+        return true;
+      } catch (e) {
+        toast(e && e.message ? e.message : "Connect cancelled");
+        return false;
+      }
     }
     async function connectSolNamed(name) {
       const sol = namedSol(name);
       if (!sol) {
-        const store = { phantom: "https://phantom.app", solflare: "https://solflare.com", backpack: "https://backpack.app" };
-        toast("Install " + name + " or open DualLaunch inside that wallet browser.");
-        if (store[name]) window.open(store[name], "_blank", "noopener");
+        const store = {
+          phantom: "https://phantom.app/ul/browse/" + encodeURIComponent("https://www.duallaunch.xyz/#swap"),
+          solflare: "https://solflare.com/ul/v1/browse/" + encodeURIComponent("https://www.duallaunch.xyz/#swap"),
+          backpack: "https://backpack.app",
+          trust: "https://link.trustwallet.com/open_url?coin_id=501&url=" + encodeURIComponent("https://www.duallaunch.xyz/#swap")
+        };
+        toast("Open DualLaunch inside " + name + " browser");
+        if (store[name]) window.location.href = store[name];
         return;
       }
-      try {
-        const res = await sol.connect();
-        solWalletObj = sol;
-        solAddr = (res.publicKey || sol.publicKey).toString();
-        $("btnSolW").textContent = short(solAddr) + " · SOL";
-        paintWallet();
-        refreshSolBal();
-        passSolToJup();
-        toast(name + " connected.");
-      } catch (e) { toast(e.message || "Cancelled"); }
+      await attachSol(sol, name);
     }
     async function connectSol() {
-      const sol = solProvider();
-      if (!sol) { toast("No Solana wallet here. Use Phantom, Solflare or Backpack on Swap, or open this site inside the wallet browser."); return; }
-      try {
-        const res = await sol.connect();
-        solWalletObj = sol;
-        solAddr = (res.publicKey || sol.publicKey).toString();
-        $("btnSolW").textContent = short(solAddr) + " · SOL";
-        paintWallet();
-        refreshSolBal();
-        passSolToJup();
-        toast("Solana connected.");
-      } catch (e) { toast(e.message || "Solana cancelled"); }
+      await attachSol(solProvider(), "Solana");
     }
     $("btnEvm").onclick = connectEvm;
     $("btnSolW").onclick = connectSol;
     (function mobileWalletLinks(){
       const here = encodeURIComponent("https://www.duallaunch.xyz/");
-      if ($("openPhantom")) $("openPhantom").href = "https://phantom.app/ul/browse/https://www.duallaunch.xyz/";
+      if ($("openPhantom")) $("openPhantom").href = "https://phantom.app/ul/browse/" + here;
       if ($("openSolflare")) $("openSolflare").href = "https://solflare.com/ul/v1/browse/" + here;
+      if ($("openTrust")) $("openTrust").href = "https://link.trustwallet.com/open_url?coin_id=501&url=" + here;
       if ($("openMetamask")) $("openMetamask").href = "https://metamask.app.link/dapp/www.duallaunch.xyz";
     })();
 
