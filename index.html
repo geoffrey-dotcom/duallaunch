@@ -287,7 +287,7 @@
             <div class="table" id="boardNew"></div>
           </div>
           <div>
-            <p class="kicker" style="margin:18px 0 8px">$15k+</p>
+            <p class="kicker" style="margin:18px 0 8px">$15k+ · last 7 days</p>
             <div class="board-head"><span></span><span>Token</span><span>Age</span><span>MCap</span><span>24h</span><span>Curve</span></div>
             <div class="table" id="boardHot"></div>
           </div>
@@ -312,33 +312,6 @@
           <span class="tick">Solana mainnet · create in Phantom</span>
           <span class="go">Continue to pump.fun →</span>
         </a>
-      </div>
-
-      <div class="panel" style="max-width:720px;margin-top:28px">
-        <p class="kicker">Dual Launch pack</p>
-        <h2 style="margin:6px 0 8px">Fill once. Sign on both pads.</h2>
-        <p class="lede">DualLaunch does not mint. You copy the same name, ticker and bio into PONS and pump.fun and sign there. Two chains, two contracts.</p>
-        <label>Name</label>
-        <input id="dlName" placeholder="Token name" />
-        <label>Ticker</label>
-        <input id="dlTick" placeholder="TICKER" />
-        <label>Description</label>
-        <textarea id="dlBio" placeholder="Same text on both pads"></textarea>
-        <label>X</label>
-        <input id="dlX" placeholder="https://x.com/…" />
-        <label>Telegram</label>
-        <input id="dlTg" placeholder="https://t.me/…" />
-        <label>Website</label>
-        <input id="dlWeb" placeholder="https://…" />
-        <div class="split" style="margin-top:12px">
-          <button class="btn btn-ghost" type="button" onclick="dualCopy()">Copy pack</button>
-          <button class="btn btn-lime" type="button" onclick="dualOpenBoth()">Open PONS + pump.fun</button>
-        </div>
-        <p class="tick" id="dlPackStatus" style="margin-top:10px"></p>
-        <label style="margin-top:16px">After launch — paste both CAs to link them on DualLaunch</label>
-        <input id="dlCaRh" placeholder="PONS / 0x…" />
-        <input id="dlCaSol" placeholder="pump.fun mint" />
-        <button class="btn btn-ghost" type="button" style="margin-top:8px" onclick="dualLinkCas()">Save pair locally</button>
       </div>
 
     </section>
@@ -707,7 +680,10 @@
         if (filter === "live" && graduated(c)) return false;
         if (filter === "grad" && !graduated(c)) return false;
         if (filter === "soon" && (graduated(c) || pct(c) < 70 || pct(c) >= 100 || Date.now() - Number(c.created||0) > 7*86400000)) return false;
-        if (filter === "m15" && Number(c.mcap||0) < 15000) return false;
+        if (filter === "m15") {
+          if (Number(c.mcap||0) < 15000) return false;
+          if (Date.now() - Number(c.created||0) > 7*86400000) return false;
+        }
         if (filter === "watch" && !isPinned(c.id)) return false;
         if (ageBy === "24h" && now - Number(c.created || 0) > 86400000) return false;
         if (ageBy === "7d" && now - Number(c.created || 0) > 7 * 86400000) return false;
@@ -832,7 +808,9 @@
       if (canDual) {
         const base = visible();
         const newest = base.slice().sort((a,b)=>(b.created||0)-(a.created||0)).slice(0, 24);
-        const hot = base.filter((c)=>Number(c.mcap||0)>=15000).sort((a,b)=>(b.mcap||0)-(a.mcap||0)).slice(0, 24);
+        const week = Date.now() - 7*86400000;
+        const hot = base.filter((c)=>Number(c.mcap||0)>=15000 && Number(c.created||0)>=week)
+          .sort((a,b)=>(b.mcap||0)-(a.mcap||0)).slice(0, 24);
         fillTable($("boardNew"), newest);
         fillTable($("boardHot"), hot);
         if (!newest.length && $("board")) fillTable($("board"), visible().slice(0, boardLimit));
