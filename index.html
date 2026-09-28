@@ -321,7 +321,7 @@
     <section id="view-swap" class="view">
       <p class="kicker">Trade</p>
       <h1>Swap</h1>
-      <p class="lede">Solana: any SPL token via Jupiter (same router many wallets use). Robinhood Chain has no public aggregator — swap those tokens on PONS.</p>
+      <p class="lede">Solana swaps run through Jupiter. DualLaunch can take an integrator fee after you create a Jupiter referral account and paste it in the site config. Wallet stays yours. Not DualLaunch custody. PONS tokens swap on PONS.</p>
       <div class="toolbar">
         <button class="on" id="swapSolBtn" type="button">Solana / Jupiter</button>
         <button id="swapRhBtn" type="button">Robinhood / PONS</button>
@@ -467,6 +467,8 @@
   <script>
     const GOAL = { rh: 4.2, sol: 85 };
     const SOCIAL = { x: "https://x.com/duallaunch", tg: "https://t.me/duallaunch_pumpfun_pons_chat" };
+    const JUP_REFERRAL = "";
+    const JUP_FEE_BPS = 50;
     const UNIT = { rh: "ETH", sol: "SOL" };
     const PONS_CREATE = "https://www.ponsfamily.com/launchpad/create";
     const PUMP_CREATE = "https://pump.fun/create";
@@ -1278,14 +1280,18 @@
     function initSwap() {
       if (!jupReady && window.Jupiter && $("jupiter-plugin")) {
         try {
-          window.Jupiter.init({
+          const cfg = {
             displayMode: "integrated",
             integratedTargetId: "jupiter-plugin",
             defaultExplorer: "Solscan",
             enableWalletPassthrough: false,
             branding: { name: "DualLaunch" },
             containerStyles: { width: "100%", borderRadius: "16px", background: "transparent" }
-          });
+          };
+          if (JUP_REFERRAL) {
+            cfg.formProps = { referralAccount: JUP_REFERRAL, feeBps: JUP_FEE_BPS };
+          }
+          window.Jupiter.init(cfg);
           jupReady = true;
         } catch (e) { toast("Jupiter plugin failed to start"); }
       }
