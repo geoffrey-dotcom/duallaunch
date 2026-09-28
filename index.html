@@ -1278,7 +1278,9 @@
       try {
         let key = solKey(sol);
         if (!key && typeof sol.connect === "function") {
-          const res = await sol.connect({ onlyIfTrusted: false });
+          let res;
+          try { res = await sol.connect(); }
+          catch (e1) { res = await sol.connect({ onlyIfTrusted: false }); }
           key = (res && res.publicKey) ? (res.publicKey.toString ? res.publicKey.toString() : String(res.publicKey)) : solKey(sol);
         }
         if (!key && typeof sol.request === "function") {
@@ -1335,7 +1337,7 @@
             displayMode: "integrated",
             integratedTargetId: "jupiter-plugin",
             defaultExplorer: "Solscan",
-            enableWalletPassthrough: true,
+            enableWalletPassthrough: false,
             branding: { name: "DualLaunch", logoUri: "/logo.jpg" },
             containerStyles: { width: "100%", borderRadius: "16px", background: "transparent" }
           };
@@ -1771,8 +1773,13 @@
     }
     function closeNav(){ document.body.classList.remove("nav-open"); }
     function toggleNav(){ document.body.classList.toggle("nav-open"); }
+    function eagerSolConnect() {
+      const sol = solProvider();
+      if (sol && solKey(sol)) attachSol(sol, "Solana");
+    }
     loadPrefs();
-    loadFeed().then(function(){ bootHash(); renderBoard(true); });
+    loadFeed().then(function(){ bootHash(); renderBoard(true); eagerSolConnect(); });
+    setTimeout(eagerSolConnect, 800);
     startLive();
     window.addEventListener("hashchange", bootHash);
   </script>
