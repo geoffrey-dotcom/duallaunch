@@ -336,7 +336,8 @@
           <button class="btn btn-lime" type="button" onclick="connectSol()">Any detected</button>
         </div>
         <div id="jupiter-plugin"></div>
-        <p class="tick" style="margin-top:10px">Connect a Solana wallet on this page first (extension or the wallet’s in-app browser). Desktop Chrome without an extension cannot see wallets.</p>
+        <p class="tick" style="margin-top:10px">If the green button stays on Loading, use the link below. Same wallet, same swap.</p>
+        <a class="btn btn-lime" id="openJupSwap" href="https://jup.ag/swap?referrer=HGvhFNi2TqvNdaAMkjrEjFpgNMH56jnzrK9aQnszf2wn" target="_blank" rel="noopener" style="margin-top:10px">Open swap (fee on)</a>
       </div>
       <div id="rhSwap" class="panel" style="max-width:480px;display:none">
         <p class="tick">Paste a PONS token address, or open a coin on the board and use Open coin.</p>
@@ -472,6 +473,7 @@
     const SOCIAL = { x: "https://x.com/duallaunch", tg: "https://t.me/duallaunch_pumpfun_pons_chat" };
     const JUP_REFERRAL = "HGvhFNi2TqvNdaAMkjrEjFpgNMH56jnzrK9aQnszf2wn";
     const JUP_FEE_BPS = 50;
+    const JUP_USE_FEE = true;
     const UNIT = { rh: "ETH", sol: "SOL" };
     const PONS_CREATE = "https://www.ponsfamily.com/launchpad/create";
     const PUMP_CREATE = "https://pump.fun/create";
@@ -1341,8 +1343,12 @@
             branding: { name: "DualLaunch", logoUri: "/logo.jpg" },
             containerStyles: { width: "100%", borderRadius: "16px", background: "transparent" }
           };
-          if (JUP_REFERRAL) {
-            cfg.formProps = { referralAccount: JUP_REFERRAL, feeBps: JUP_FEE_BPS };
+          if (JUP_REFERRAL && JUP_USE_FEE) {
+            cfg.formProps = {
+              referralAccount: JUP_REFERRAL,
+              feeBps: JUP_FEE_BPS,
+              referralFee: JUP_FEE_BPS
+            };
           }
           window.Jupiter.init(cfg);
           jupReady = true;
