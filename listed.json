@@ -1,5 +1,25 @@
 [
   {
+    "id": "rh-0x1dfd9c22b6c37afa6332e784d860159876575877",
+    "name": "Merger Tokenized Protocol",
+    "symbol": "MERRGER",
+    "chain": "rh",
+    "address": "0x1dFd9c22B6C37AFa6332E784D860159876575877",
+    "logo": "https://cdn.dexscreener.com/cms/images/wIEC-hMpzd9JM5R0?width=800&height=800&quality=95&format=auto",
+    "twitter": "https://x.com/mergerclick",
+    "telegram": "",
+    "website": "https://merger.click/",
+    "desc": "Merger Tokenized Protocol\n\nMERRGER\n/\nETH\n20h\nRobinhood\n\nUniswap\nv4\nThis pair has very little liquidity\n\nPrice USD\n$0.058153\nPrice\n0.083046 ETH\nLiquidity\n$1\nFDV\n$7.7K\nMkt Cap\n$7.7K\n\nLoading...\nLoading...\n\n5M\n0%\n\n1H\n0%\n\n6H\n0%\n\n24H\n172%\nTxns\n5\nVolume\n$1\nTraders\n3\nBuys\n5\nSells\n0\nBuy Vol\n$1\nSell Vol\n$0\nBuyers\n3\nSellers\n0\nPair created\n20h 37m ago\nPooled MERRGER\n69,938\n<$1\nPooled ETH\n0.0002130\n<$1\nPair\nM",
+    "listed": true,
+    "created": 1790773490333,
+    "mcap": 7798,
+    "vol": "$7.798",
+    "raised": 0,
+    "goal": 4.2,
+    "link": "https://dexscreener.com/robinhood/0x3109af6ac08e9476be805b3b80e86e42d1b9bced4940bc28ca694d6b5616a407",
+    "chart": "https://dexscreener.com/robinhood/0x3109af6ac08e9476be805b3b80e86e42d1b9bced4940bc28ca694d6b5616a407"
+  },
+  {
     "id": "sol-9pmxebtjq5hhiyifgbnbwkmkrqxgyhusmb8ndknxpump",
     "name": "Super Intelligent Cat",
     "symbol": "SICAT",
