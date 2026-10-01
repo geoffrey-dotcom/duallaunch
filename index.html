@@ -382,6 +382,49 @@
     .board-head,.tile { min-width:680px; }
   }
 </style>
+
+<style id="dl-gold">
+  body{background:#07080b !important;color:#e8eaed !important;}
+  .shell{display:grid !important;grid-template-columns:228px minmax(0,1fr) !important;background:#07080b !important;}
+  .topbar{display:none !important;}
+  aside.side{background:#0c0e12 !important;border-right:1px solid #22262c !important;width:228px !important;}
+  .brand{color:#e8c56b !important;font-weight:650;}
+  .nav-links button{border-radius:8px !important;color:#c8ccd4 !important;background:transparent !important;text-align:left !important;}
+  .nav-links button.on{background:#1a160e !important;color:#e8c56b !important;box-shadow:inset 3px 0 0 #e8c56b !important;}
+  main{padding:16px 18px 40px !important;max-width:none !important;}
+  .goldbar{display:flex;gap:18px;align-items:center;color:#9aa0aa;font-size:12px;letter-spacing:.04em;padding:4px 2px 12px;border-bottom:1px solid #22262c;margin-bottom:12px;}
+  .goldbar b{color:#e8eaed;font-weight:650;}
+  .gb-brand{color:#e8c56b;font-weight:700;letter-spacing:.04em;}
+  .gb-net{margin-left:auto;border:1px solid #2c6b45;color:#7dffa1;border-radius:999px;padding:4px 10px;}
+  .termbar{color:#9aa0aa !important;letter-spacing:.14em !important;background:transparent !important;border:0 !important;}
+  h1,.lede,.kicker{display:none !important;}
+  .desk{display:grid !important;grid-template-columns:minmax(0,1fr) 270px !important;gap:14px !important;}
+  .stats-strip{display:none !important;}
+  .table{background:#101216 !important;border:1px solid #262b31 !important;border-radius:14px !important;}
+  .board-head{color:#8b93a1 !important;background:#0e1014 !important;}
+  .tile{background:transparent !important;border-bottom:1px solid #1c2127 !important;}
+  .tile:hover{background:#161a1f !important;}
+  .chg.up{color:#3ddc84 !important;}
+  .chg.down{color:#ff5d6c !important;}
+  .bar{height:3px !important;background:#2a2418 !important;}
+  .bar i{background:#e8c56b !important;}
+  .rail .sbox{background:#101216 !important;border:1px solid #262b31 !important;border-radius:14px !important;}
+  .rail .sbox b{color:#e8c56b !important;letter-spacing:.08em;font-size:11px !important;}
+  .rail .sbox span{color:#e8eaed !important;font-size:28px !important;font-weight:700 !important;}
+  .gauge{height:8px;border-radius:99px;background:#242018;overflow:hidden;margin-top:10px;}
+  .gauge i{display:block;height:100%;width:62%;background:linear-gradient(90deg,#e8c56b,#3ddc84);}
+  @media(max-width:900px){
+    .shell{display:block !important;}
+    aside.side{position:sticky;top:0;height:auto;width:100% !important;z-index:20;border-right:0 !important;border-bottom:1px solid #22262c;}
+    .nav-links{display:flex !important;flex-direction:row !important;overflow:auto;gap:6px;}
+    .wallets{display:none !important;}
+    .desk{display:flex !important;flex-direction:column !important;}
+    .goldbar{overflow:auto;white-space:nowrap;}
+    .rail{display:grid !important;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+    .table{overflow:auto;}
+    .board-head,.tile{min-width:680px;}
+  }
+</style>
 </head>
 <body>
   <div class="shell">
@@ -410,7 +453,7 @@
   </aside>
   <main>
     <section id="view-board" class="view on">
-      <div class="termbar"><span>DUALLAUNCH</span><b>MARKET OVERVIEW</b><span>PONS · Solana</span></div>
+      <div class="goldbar" id="goldbar"><span class="gb-brand">DualLaunch</span><span>LIVE COINS <b id="gbCount">—</b></span><span>PONS <b id="gbRh">—</b></span><span>PUMP <b id="gbSol">—</b></span><span class="gb-net">MAINNET</span></div><div class="termbar"><span>MARKET OVERVIEW</span><span>PONS · pump.fun</span></div>
       <p class="kicker">Live board</p>
       <h1>Market overview</h1>
       <p class="lede">DualLaunch is a board. Create and trade tokens in your own wallet on the official pads.</p>
@@ -1579,6 +1622,9 @@
       if ($("statCount")) $("statCount").textContent = String(coins.length);
       if ($("statRh")) $("statRh").textContent = String(coins.filter((c)=>c.chain==="rh").length);
       if ($("statSol")) $("statSol").textContent = String(coins.filter((c)=>c.chain==="sol").length);
+      if ($("gbCount")) $("gbCount").textContent = String(coins.length);
+      if ($("gbRh")) $("gbRh").textContent = String(coins.filter((c)=>c.chain==="rh").length);
+      if ($("gbSol")) $("gbSol").textContent = String(coins.filter((c)=>c.chain==="sol").length);
       const freshN = coins.filter((c)=> Date.now() - Number(c.created||0) < 5*60000).length;
       if ($("statFresh")) $("statFresh").textContent = String(freshN);
       paintWallet();
