@@ -278,6 +278,29 @@
   #jupiter-plugin [class*="powered" i], #jupiter-plugin [class*="Powered"], #jupiter-plugin footer { display:none !important; height:0 !important; overflow:hidden !important; }
   @media (max-width:980px) { .desk { grid-template-columns:1fr; } }
 </style>
+
+<style id="dl-v3">
+  body { background:#0a0c0f !important; }
+  aside.side { background:#0c0e12 !important; width:200px !important; flex-basis:200px !important; }
+  .nav-links button { border-radius:8px !important; font-size:13px !important; }
+  .nav-links button.on { background:#171c14 !important; color:#d6ff4a !important; box-shadow: inset 3px 0 0 #d6ff4a !important; }
+  .termbar { display:flex !important; gap:16px; align-items:center; background:#10140f; border:1px solid #2a3320; color:#d6ff4a; letter-spacing:.08em; font-size:11px; padding:10px 14px; border-radius:8px; margin-bottom:12px; }
+  h1 { font-size:28px !important; font-weight:650 !important; }
+  .stats-strip { grid-template-columns: repeat(4,1fr) !important; gap:10px !important; }
+  .sbox { background:#12161a !important; border:1px solid #262b31 !important; border-radius:10px !important; }
+  .desk { display:grid !important; grid-template-columns: minmax(0,1fr) 260px !important; gap:14px !important; }
+  .rail .sbox b { color:#d6ff4a; letter-spacing:.08em; font-size:11px; }
+  .table { border:1px solid #262b31 !important; border-radius:12px !important; background:#101317 !important; }
+  .board-head { background:#0e1114 !important; color:#8b93a1 !important; }
+  .tile { background:transparent !important; border-bottom:1px solid #1c2127 !important; }
+  .tile:hover { background:#161b20 !important; }
+  .toolbar button { background:#12161a !important; color:#c5c8ce !important; border:1px solid #2a3036 !important; border-radius:999px !important; }
+  .toolbar button.on { color:#0b0e11 !important; background:#d6ff4a !important; border-color:#d6ff4a !important; }
+  .chg.up { color:#d6ff4a !important; }
+  .chg.down { color:#ff5d73 !important; }
+  .bar i { background:#d6ff4a !important; }
+  @media (max-width:980px) { .desk { grid-template-columns:1fr !important; } }
+</style>
 </head>
 <body>
   <div class="shell">
@@ -308,7 +331,7 @@
     <section id="view-board" class="view on">
       <div class="termbar"><span>DUALLAUNCH</span><b>MARKET OVERVIEW</b><span>PONS · Solana</span></div>
       <p class="kicker">Live board</p>
-      <h1>Markets</h1>
+      <h1>Market overview</h1>
       <p class="lede">DualLaunch is a board. Create and trade tokens in your own wallet on the official pads.</p>
       <div class="desk"><div>
       <div class="stats-strip">
@@ -1512,14 +1535,61 @@
         feedBusy = false;
       }
     }
+
+    async function quoteVisible() {
+      const rows = coins.slice(0, 40);
+      const sol = rows.filter((c) => c.chain !== "rh" && c.address).map((c) => c.address);
+      const rh = rows.filter((c) => c.chain === "rh" && c.address && c.address.startsWith("0x")).map((c) => c.address);
+      async function hit(chain, addrs) {
+        if (!addrs.length) return [];
+        const url = "https://api.dexscreener.com/tokens/v1/" + chain + "/" + addrs.slice(0, 30).join(",");
+        const r = await fetch(url);
+        if (!r.ok) return [];
+        const data = await r.json();
+        return Array.isArray(data) ? data : (data.pairs || []);
+      }
+      try {
+        const pairs = [].concat(await hit("solana", sol), await hit("robinhood", rh));
+        const by = {};
+        pairs.forEach((pair) => {
+          const base = (pair.baseToken && pair.baseToken.address) || "";
+          if (!base) return;
+          const key = base.toLowerCase();
+          const mc = Number(pair.marketCap || pair.fdv || 0);
+          const prev = by[key];
+          if (!prev || mc > prev.mc) {
+            by[key] = {
+              mc: mc,
+              price: pair.priceUsd,
+              chg: pair.priceChange && pair.priceChange.h24,
+              pair: pair.pairAddress
+            };
+          }
+        });
+        let changed = false;
+        coins.forEach((c) => {
+          const d = by[String(c.address || "").toLowerCase()];
+          if (!d) return;
+          if (d.mc) { c.mcap = d.mc; c.vol = money(d.mc); changed = true; }
+          if (d.price) c.priceUsd = d.price;
+          if (d.chg != null && d.chg !== "") c.chg24 = Number(d.chg);
+          if (d.pair) c.pair = d.pair;
+        });
+        if (changed) renderBoard(false);
+      } catch (e) {}
+    }
+
     let liveTimer = null;
     function startLive() {
       if (liveTimer) clearInterval(liveTimer);
-      const ms = document.hidden ? 15000 : 2500;
+      const ms = document.hidden ? 20000 : 12000;
       liveTimer = setInterval(function(){
         const r = loadFeed();
-        if (r && r.then) r.then(function(){ checkWatchAlerts(); if ($("view-tools") && $("view-tools").classList.contains("on")) renderTerminal(); });
+        if (r && r.then) r.then(function(){ checkWatchAlerts(); quoteVisible(); if ($("view-tools") && $("view-tools").classList.contains("on")) renderTerminal(); });
       }, ms);
+      if (!window.__dlQuote) {
+        window.__dlQuote = setInterval(quoteVisible, 5000);
+      }
     }
     document.addEventListener("visibilitychange", startLive);
 
@@ -1855,7 +1925,7 @@
       if (sol && solKey(sol)) attachSol(sol, "Solana");
     }
     loadPrefs();
-    loadFeed().then(function(){ bootHash(); renderBoard(true); eagerSolConnect(); });
+    loadFeed().then(function(){ bootHash(); renderBoard(true); quoteVisible(); eagerSolConnect(); });
     setTimeout(eagerSolConnect, 800);
     startLive();
     window.addEventListener("hashchange", bootHash);
