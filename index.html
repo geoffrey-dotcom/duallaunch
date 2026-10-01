@@ -2130,5 +2130,14 @@
   .tile{display:grid !important;visibility:visible !important;opacity:1 !important;}
   #board{min-height:200px;}
 </style>
+
+<style id="dl-showcoins">
+  html,body,.shell,main,.desk,.table,#board{overflow:visible !important;height:auto !important;min-height:0 !important;}
+  .toolbar{display:flex !important;flex-wrap:wrap !important;overflow:visible !important;max-width:100% !important;}
+  #board .tile{display:grid !important;visibility:visible !important;opacity:1 !important;min-height:52px !important;}
+  @media (max-width:900px){
+    #board .tile{grid-template-columns:44px minmax(0,1fr) auto !important;}
+  }
+</style>
 </body>
 </html>
