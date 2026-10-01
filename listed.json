@@ -1,5 +1,25 @@
 [
   {
+    "id": "rh-0x84130a43279653343b41f0b9bba3998eefcef819",
+    "name": "ZeroAgent",
+    "symbol": "ZERO",
+    "chain": "rh",
+    "address": "0x84130a43279653343b41f0b9bba3998eefcef819",
+    "logo": "https://raw.githubusercontent.com/geoffrey-dotcom/duallaunch/main/logos/rh-0x84130a43279653343b41f0b9bba3998eefcef819.jpg",
+    "twitter": "https://x.com/zeroagentnet",
+    "telegram": "",
+    "website": "https://www.zeroagent.network/",
+    "desc": "$ZERO is the utility and governance asset for ZeroAgent the trust, safety, and settlement operating system for autonomous on-chain AI agents. Moving past fragile read-only previews and unconstrained private keys, ZeroAgent unites ERC-8004 Trustless Agent Registries, ERC-7579 Modular Policy Accounts, hardware-attested TEE task escrows, and native Model Context Protocol (MCP) servers. $ZERO powers t",
+    "listed": true,
+    "created": 1790833710437,
+    "mcap": 5440,
+    "vol": "$5.440",
+    "raised": 0,
+    "goal": 4.2,
+    "link": "https://dexscreener.com/robinhood/0xa17b50ab39408e7731a7002817b943ab4c9ac34bf3ed4b352568bfe2c11ed1fc",
+    "chart": "https://dexscreener.com/robinhood/0xa17b50ab39408e7731a7002817b943ab4c9ac34bf3ed4b352568bfe2c11ed1fc"
+  },
+  {
     "id": "rh-0x1dfd9c22b6c37afa6332e784d860159876575877",
     "name": "Merger Tokenized Protocol",
     "symbol": "MERRGER",
