@@ -342,6 +342,46 @@
   .bar{height:3px !important;background:#243024 !important;}
   .bar i{background:#b6f23a !important;box-shadow:0 0 8px #b6f23a;}
 </style>
+
+<style id="dl-match1">
+  :root { --bg:#0c0e12; --panel:#12151a; --line:#232830; --lime:#b6f23a; --muted:#9aa3af; }
+  body { background:var(--bg) !important; }
+  .shell { display:grid !important; grid-template-columns:220px minmax(0,1fr) !important; min-height:100vh; }
+  .topbar { display:none !important; }
+  aside.side { position:sticky; top:0; height:100vh; width:220px !important; background:#0c0e12 !important; border-right:1px solid var(--line) !important; padding:18px 12px !important; }
+  .nav-links button { border-radius:10px !important; color:#c5c8ce !important; background:transparent !important; }
+  .nav-links button.on { background:#1c2a12 !important; color:var(--lime) !important; box-shadow:none !important; }
+  main { padding:22px 22px 40px !important; max-width:none !important; }
+  .termbar { display:flex !important; color:var(--muted); letter-spacing:.16em; font-size:12px; margin:0 0 14px; }
+  h1,.lede,.kicker { display:none !important; }
+  .desk { display:grid !important; grid-template-columns:minmax(0,1fr) 250px !important; gap:16px !important; }
+  .stats-strip { display:none !important; }
+  .table { background:var(--panel) !important; border:1px solid var(--line) !important; border-radius:16px !important; overflow:hidden !important; }
+  .board-head,.tile { display:grid !important; grid-template-columns:28px minmax(160px,1.6fr) 72px 96px 72px minmax(90px,1fr) 96px !important; }
+  .tile { background:transparent !important; border-bottom:1px solid #1c2128 !important; padding:12px !important; }
+  .tile:hover { background:#181c22 !important; }
+  .chg.up { color:var(--lime) !important; }
+  .chg.down { color:#ff5d6c !important; }
+  .bar { height:4px !important; background:#243024 !important; border-radius:99px; }
+  .bar i { background:var(--lime) !important; }
+  .rail { display:flex; flex-direction:column; gap:12px; }
+  .rail .sbox { background:var(--panel) !important; border:1px solid var(--line) !important; border-radius:16px !important; padding:16px !important; }
+  .rail .sbox b { color:var(--muted) !important; font-size:13px !important; font-weight:500 !important; }
+  .rail .sbox span { display:block; margin-top:8px; font-size:32px !important; font-weight:700 !important; color:var(--lime) !important; }
+  @media (max-width:900px){
+    .shell { display:block !important; }
+    .topbar { display:none !important; }
+    aside.side { position:sticky; top:0; height:auto; width:100% !important; z-index:30; display:block; border-right:0 !important; border-bottom:1px solid var(--line); padding:10px !important; }
+    .nav-links { display:flex !important; flex-direction:row !important; overflow:auto; gap:6px; }
+    .wallets { display:none !important; }
+    main { padding:12px !important; }
+    .desk { display:flex !important; flex-direction:column !important; }
+    .rail { display:grid !important; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+    .rail .sbox span { font-size:18px !important; }
+    .table { overflow:auto; }
+    .board-head,.tile { min-width:680px; }
+  }
+</style>
 </head>
 <body>
   <div class="shell">
