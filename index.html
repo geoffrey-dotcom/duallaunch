@@ -425,6 +425,27 @@
     .board-head,.tile{min-width:680px;}
   }
 </style>
+
+<style id="dl-phonefix">
+  @media (max-width:900px){
+    .shell{display:block !important;overflow-x:hidden !important;}
+    main{padding:12px !important;overflow-x:hidden !important;}
+    .desk{display:flex !important;flex-direction:column !important;width:100% !important;}
+    .table{overflow:visible !important;width:100% !important;min-width:0 !important;}
+    .board-head{display:none !important;}
+    .tile{display:grid !important;grid-template-columns:44px 1fr auto !important;grid-template-areas:"av name chg" "av mc bar" "av age links" !important;min-width:0 !important;width:100% !important;gap:6px 10px !important;padding:12px !important;}
+    .tile .sbtn:first-child{display:none !important;}
+    .tile .ident{grid-area:name;min-width:0;}
+    .tile .js-age{grid-area:age;}
+    .tile .js-mc{grid-area:mc;font-weight:700;}
+    .tile .js-chg{grid-area:chg;text-align:right;}
+    .tile .bar,.tile .js-pct{grid-area:bar;}
+    .tile .slinks{grid-area:links;justify-self:end;}
+    .goldbar{display:flex;overflow:auto;gap:12px;}
+    .rail{display:grid !important;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+    .rail .sbox span{font-size:16px !important;}
+  }
+</style>
 </head>
 <body>
   <div class="shell">
