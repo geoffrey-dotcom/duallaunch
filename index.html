@@ -210,6 +210,50 @@
       footer { padding: 16px 14px 28px; }
     }
   </style>
+
+<style id="dl-pro">
+  :root {
+    --bg:#0b0e11; --panel:#12161c; --line:#1e2329; --text:#eaecef; --dim:#848e9c;
+    --lime:#16c784; --up:#16c784; --down:#ea3943; --violet:#8b7cff;
+  }
+  body { background:#0b0e11; font-family: Manrope, Inter, system-ui, sans-serif; color:#eaecef; }
+  aside.side { width:220px; flex-basis:220px; background:#0e1116; border-right:1px solid #1e2329; padding:18px 12px; }
+  .brand { margin-bottom:18px; font-size:15px; letter-spacing:-.03em; }
+  .brand img { width:28px; height:28px; border-radius:8px; }
+  .nav-links button { color:#848e9c; border-radius:8px; padding:9px 10px; font-weight:600; font-size:13.5px; }
+  .nav-links button.on { color:#eaecef; background:#1a1f27; box-shadow: inset 2px 0 0 #16c784; }
+  .nav-links button:hover { background:#161b22; color:#fff; }
+  .btn-lime { background:#16c784; color:#04140d; font-weight:700; }
+  .btn-ghost { background:#12161c; border-color:#2b3139; border-radius:8px; }
+  main { padding:22px 22px 64px; }
+  .kicker { letter-spacing:.14em; color:#6b7280; }
+  h1 { font-weight:650; letter-spacing:-.03em; }
+  .lede { color:#9aa3af; font-size:14px; }
+  .sbox, .panel, .table, .launch-card { background:#12161c; border-color:#1e2329; border-radius:10px; box-shadow:none; }
+  .sbox { padding:14px 16px; }
+  .sbox b { font-size:11px; letter-spacing:.04em; text-transform:uppercase; color:#6b7280; }
+  .toolbar button { border-radius:999px; border:1px solid #2b3139; background:#12161c; color:#c5c8ce; font-size:12.5px; font-weight:600; }
+  .toolbar button.on { background:#1a1f27; color:#fff; border-color:#16c784; box-shadow:none; }
+  .search input, input, textarea, select {
+    background:#0e1116 !important; border:1px solid #2b3139 !important; border-radius:8px !important; color:#eaecef !important;
+  }
+  .board-head { background:#0e1116; color:#6b7280; font-size:11px; letter-spacing:.06em; }
+  .tile { background:transparent; border-bottom:1px solid #1a1f27; min-height:52px; padding:10px 12px; }
+  .tile:hover { background:#161b22; }
+  .av { width:32px; height:32px; border-radius:50%; }
+  .name { font-weight:650; font-size:14px; }
+  .tick { color:#848e9c; }
+  .chg.up { color:#16c784; font-variant-numeric:tabular-nums; }
+  .chg.down { color:#ea3943; font-variant-numeric:tabular-nums; }
+  .mc { font-variant-numeric:tabular-nums; font-weight:600; }
+  .bar { background:#1e2329; height:4px; border-radius:99px; overflow:hidden; }
+  .bar i { background:#16c784; display:block; height:100%; }
+  .live-dot { background:#16c784; box-shadow:none; }
+  .table { background:#12161c; }
+  footer { border-top:1px solid #1e2329; color:#6b7280; }
+  .launch-card.lime .go { color:#16c784; }
+</style>
+
 </head>
 <body>
   <div class="shell">
@@ -239,7 +283,7 @@
   <main>
     <section id="view-board" class="view on">
       <p class="kicker">Robinhood Chain · Solana</p>
-      <h1>Live launches on PONS and pump.fun</h1>
+      <h1>Markets</h1>
       <p class="lede">DualLaunch is a board. Create and trade tokens in your own wallet on the official pads.</p>
       <div class="stats-strip">
         <div class="sbox"><b>Live coins</b><span id="statCount">—</span></div>
