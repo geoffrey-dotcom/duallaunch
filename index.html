@@ -425,27 +425,6 @@
     .board-head,.tile{min-width:680px;}
   }
 </style>
-
-<style id="dl-phonefix">
-  @media (max-width:900px){
-    .shell{display:block !important;overflow-x:hidden !important;}
-    main{padding:12px !important;overflow-x:hidden !important;}
-    .desk{display:flex !important;flex-direction:column !important;width:100% !important;}
-    .table{overflow:visible !important;width:100% !important;min-width:0 !important;}
-    .board-head{display:none !important;}
-    .tile{display:grid !important;grid-template-columns:44px 1fr auto !important;grid-template-areas:"av name chg" "av mc bar" "av age links" !important;min-width:0 !important;width:100% !important;gap:6px 10px !important;padding:12px !important;}
-    .tile .sbtn:first-child{display:none !important;}
-    .tile .ident{grid-area:name;min-width:0;}
-    .tile .js-age{grid-area:age;}
-    .tile .js-mc{grid-area:mc;font-weight:700;}
-    .tile .js-chg{grid-area:chg;text-align:right;}
-    .tile .bar,.tile .js-pct{grid-area:bar;}
-    .tile .slinks{grid-area:links;justify-self:end;}
-    .goldbar{display:flex;overflow:auto;gap:12px;}
-    .rail{display:grid !important;grid-template-columns:1fr 1fr 1fr;gap:8px;}
-    .rail .sbox span{font-size:16px !important;}
-  }
-</style>
 </head>
 <body>
   <div class="shell">
@@ -1157,28 +1136,7 @@
         if (note) note.textContent = "Candle feed down. Use Open DexScreener.";
       }
     }
-    async 
-    function tradeCoin(id, side) {
-      const c = coins.find((x) => x.id === id);
-      if (!c) return;
-      const usd = Number(($("tradeUsd") && $("tradeUsd").value) || 0);
-      const note = $("tradeNote");
-      const frame = $("tradeFrame");
-      if (!usd || usd < 1) { if (note) note.textContent = "Enter an amount in USD."; return; }
-      if (c.chain !== "sol") {
-        if (note) note.textContent = "PONS trades open on the official pad. DualLaunch does not custody that swap.";
-        window.open(c.link || "https://www.ponsfamily.com", "_blank", "noopener");
-        return;
-      }
-      const mint = c.address;
-      const url = side === "sell"
-        ? "https://jup.ag/swap/" + encodeURIComponent(mint) + "-SOL"
-        : "https://jup.ag/swap/SOL-" + encodeURIComponent(mint);
-      if (note) note.textContent = (side === "sell" ? "Sell " : "Buy ") + c.symbol + " for about $" + usd + ". Set that amount in the swap and sign in your wallet.";
-      if (frame) frame.innerHTML = '<iframe title="Swap" src="' + url + '" style="width:100%;height:620px;border:0;border-radius:16px;margin-top:12px;background:#101216"></iframe>';
-    }
-
-    function renderCoin(id) {
+    async function renderCoin(id) {
       const c = coins.find((x) => x.id === id);
       if (!c) return;
       const g = graduated(c);
@@ -1208,17 +1166,6 @@
             <div class="bar" style="height:8px;margin-top:16px"><i style="width:${pct(c)}%"></i></div>
             <p class="lede" style="margin-top:14px">${esc((c.desc || "No description.").slice(0, 280))}</p>
             ${socialBtns(c, false)}
-            <div class="tradebox">
-              <b>Trade</b>
-              <label>Amount in USD</label>
-              <input id="tradeUsd" type="number" min="1" step="1" value="25" />
-              <div class="split">
-                <button class="btn btn-lime" type="button" onclick="tradeCoin('${esc(c.id)}','buy')">Buy</button>
-                <button class="btn btn-violet" type="button" onclick="tradeCoin('${esc(c.id)}','sell')">Sell</button>
-              </div>
-              <p class="tick" id="tradeNote">Solana signs in your wallet. PONS opens the official pad.</p>
-              <div id="tradeFrame"></div>
-            </div>
             <p class="tick" style="margin-top:10px;word-break:break-all">${esc(c.address || "")}</p>
           </div>
           <div class="panel">
@@ -2109,35 +2056,5 @@
     startLive();
     window.addEventListener("hashchange", bootHash);
   </script>
-
-<style id="dl-phonefix2">
-  .tradebox{margin-top:16px;padding:14px;border:1px solid #262b31;border-radius:14px;background:#101216;display:grid;gap:8px;}
-  .tradebox input{background:#0c0e12;color:#fff;border:1px solid #333;border-radius:10px;padding:10px;}
-  @media (max-width:900px){
-    html,body{overflow-x:hidden !important;}
-    .shell{display:block !important;}
-    main,.desk,.table{width:100% !important;min-width:0 !important;overflow-x:hidden !important;}
-    .board-head{display:none !important;}
-    .tile{display:grid !important;min-width:0 !important;width:100% !important;grid-template-columns:44px 1fr auto !important;gap:6px 10px !important;}
-    .tile .sbtn:first-child{display:none !important;}
-  }
-</style>
-
-<style id="dl-visible">
-  .toolbar{display:flex !important;flex-wrap:wrap !important;gap:8px !important;overflow:visible !important;}
-  main,.desk,.table{overflow:visible !important;}
-  .table{min-height:240px;}
-  .tile{display:grid !important;visibility:visible !important;opacity:1 !important;}
-  #board{min-height:200px;}
-</style>
-
-<style id="dl-showcoins">
-  html,body,.shell,main,.desk,.table,#board{overflow:visible !important;height:auto !important;min-height:0 !important;}
-  .toolbar{display:flex !important;flex-wrap:wrap !important;overflow:visible !important;max-width:100% !important;}
-  #board .tile{display:grid !important;visibility:visible !important;opacity:1 !important;min-height:52px !important;}
-  @media (max-width:900px){
-    #board .tile{grid-template-columns:44px minmax(0,1fr) auto !important;}
-  }
-</style>
 </body>
 </html>
