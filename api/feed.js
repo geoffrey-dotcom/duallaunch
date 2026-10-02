@@ -1,216 +1,185 @@
 module.exports = async function handler(req, res) {
-  res.setHeader("Cache-Control", "s-maxage=2, stale-while-revalidate=8");
+  res.setHeader("Cache-Control", "s-maxage=8, stale-while-revalidate=20");
   res.setHeader("Access-Control-Allow-Origin", "*");
   const src = String((req.query && req.query.src) || "all");
   const wantPons = src !== "pump";
   const wantPump = src !== "pons";
-  const hdr = { accept: "application/json" };
+  const warnings = [];
+  const hdr = { accept: "application/json", "user-agent": "DualLaunch/1.0" };
 
-  try {
-    const pumpQs = (sort, offset) =>
-      "https://frontend-api-v3.pump.fun/coins?offset=" + offset +
-      "&limit=50&sort=" + sort + "&order=DESC&includeNsfw=false";
-
-    const ponsExplore = (sort, page) =>
-      "https://www.ponsfamily.com/api/pons-launches?explore=1&sort=" +
-      sort + "&age=all&page=" + page + "&includeGraduated=true";
-
-    const jobs = [
-      wantPons ? fetch(ponsExplore("newest", 1), { headers: hdr }) : null,
-      wantPons ? fetch(ponsExplore("newest", 2), { headers: hdr }) : null,
-      wantPons ? fetch(ponsExplore("newest", 3), { headers: hdr }) : null,
-      wantPons ? fetch(ponsExplore("newest", 4), { headers: hdr }) : null,
-      wantPons ? fetch(ponsExplore("recentBuys", 1), { headers: hdr }) : null,
-      wantPons ? fetch(ponsExplore("recentBuys", 2), { headers: hdr }) : null,
-      wantPons ? fetch(ponsExplore("marketCap", 1), { headers: hdr }) : null,
-      wantPump ? fetch(pumpQs("created_timestamp", 0), { headers: hdr }) : null,
-      wantPump ? fetch(pumpQs("created_timestamp", 50), { headers: hdr }) : null,
-      wantPump ? fetch(pumpQs("created_timestamp", 100), { headers: hdr }) : null,
-      wantPump ? fetch(pumpQs("last_trade_timestamp", 0) + "&complete=false", { headers: hdr }) : null,
-      wantPump ? fetch(pumpQs("last_trade_timestamp", 50) + "&complete=false", { headers: hdr }) : null,
-      wantPump ? fetch(pumpQs("market_cap", 0) + "&complete=false", { headers: hdr }) : null
-    ];
-    const settled = await Promise.all(jobs.map((p) => (p ? p.catch(() => null) : null)));
-    const [p1,p2,p3,p4,pb1,pb2,pmc, pn0,pn50,pn100, ph0,ph50, pmc2] = settled;
-
-    const flattenPons = (raw) => {
-      if (!raw) return [];
-      if (Array.isArray(raw)) return raw;
-      const a = (((raw.active || {}).items) || []);
-      const g = (((raw.graduated || {}).items) || []);
-      return a.concat(g);
-    };
-
-    const read = async (r) => (r && r.ok ? r.json() : null);
-    const ponsList = []
-      .concat(flattenPons(await read(p1)))
-      .concat(flattenPons(await read(p2)))
-      .concat(flattenPons(await read(p3)))
-      .concat(flattenPons(await read(p4)))
-      .concat(flattenPons(await read(pb1)))
-      .concat(flattenPons(await read(pb2)))
-      .concat(flattenPons(await read(pmc)));
-
-    const pumpRaw = []
-      .concat(await read(pn0) || [])
-      .concat(await read(pn50) || [])
-      .concat(await read(pn100) || [])
-      .concat(await read(ph0) || [])
-      .concat(await read(ph50) || [])
-      .concat(await read(pmc2) || []);
-
-    const ipfs = (u) => {
-      if (!u) return "";
-      const s = String(u);
-      const cid = (s.match(/ipfs\/([^/?#]+)/) || s.match(/^ipfs:\/\/([^/?#]+)/) || [])[1];
-      if (cid) return "https://w3s.link/ipfs/" + cid;
-      if (s.startsWith("ipfs://")) return "https://w3s.link/ipfs/" + s.slice(7).replace(/^ipfs\//, "");
-      return s;
-    };
-    const ponsLogo = (t) => ipfs(t.logo || t.image || t.imageUrl || t.img || (t.metadata && (t.metadata.image || t.metadata.logo)) || "");
-
-    const mapPons = (t) => {
-      const apiPct = Number(t.graduationProgressPct);
-      let goal = Number(t.graduationThresholdEth);
-      if (!Number.isFinite(goal) || goal <= 0 || goal > 50) goal = 4.2;
-      let raised = Number(t.pairedPrincipalEth);
-      if (!Number.isFinite(raised) || raised < 0) raised = 0;
-      let pct = Number.isFinite(apiPct) ? Math.max(0, Math.min(100, apiPct)) : (goal ? Math.min(100, (raised / goal) * 100) : 0);
-      const graduated = !!t.graduated || !!t.complete || pct >= 100;
-      if (graduated) { pct = 100; raised = goal; }
-      else raised = (pct / 100) * goal;
-      const addr = t.token || "";
-      const launched = new Date(t.launchedAt || Date.now()).getTime();
-      return {
-        id: "rh-" + String(addr).toLowerCase(),
-        name: t.name || "Unnamed",
-        symbol: String(t.symbol || "?").toUpperCase(),
-        chain: "rh",
-        raised,
-        goal,
-        curvePct: pct,
-        vol: t.marketCapUsd != null ? "$" + Math.round(t.marketCapUsd).toLocaleString() : "—",
-        mcap: Number(t.marketCapUsd || 0),
-        created: launched,
-        desc: t.description || "",
-        logo: ponsLogo(t),
-        address: addr,
-        twitter: t.twitter || (t.socials && t.socials.twitter) || "",
-        telegram: t.telegram || (t.socials && t.socials.telegram) || "",
-        website: t.website || (t.socials && t.socials.website) || "",
-        lastTrade: t.latestBuyAt ? new Date(t.latestBuyAt).getTime() : launched,
-        volume: Number(t.liquidityUsd || t.marketCapUsd || 0),
-        graduated,
-        link: addr ? "https://www.ponsfamily.com/launchpad/" + addr : "https://www.ponsfamily.com/launchpad",
-        chart: addr ? "https://dexscreener.com/robinhood/" + addr : ""
-      };
-    };
-
-    const mapPump = (t) => {
-      const mint = t.mint || "";
-      const realSol = Number(t.real_sol_reserves || 0) / 1e9;
-      let created = Number(t.created_timestamp || Date.now());
-      if (created < 1e12) created *= 1000;
-      const ageMs = Date.now() - created;
-      const usd = Number(t.usd_market_cap || 0);
-      const graduated = !!t.complete || realSol >= 85 || (ageMs > 14 * 86400000 && usd > 50000);
-      let raised = Math.min(85, Math.max(0, realSol));
-      if (graduated) raised = 85;
-      const curvePct = graduated ? 100 : Math.min(100, (raised / 85) * 100);
-      return {
-        id: "sol-" + mint,
-        name: t.name || "Unnamed",
-        symbol: String(t.symbol || "?").toUpperCase(),
-        chain: "sol",
-        raised,
-        goal: 85,
-        curvePct,
-        vol: t.usd_market_cap ? "$" + Math.round(t.usd_market_cap).toLocaleString() : "—",
-        mcap: Number(t.usd_market_cap || 0),
-        created,
-        desc: t.description || "",
-        logo: t.image_uri || "",
-        address: mint,
-        twitter: t.twitter || "",
-        telegram: t.telegram || "",
-        website: t.website || "",
-        lastTrade: Number(t.last_trade_timestamp || t.created_timestamp || Date.now()),
-        volume: Number(t.usd_market_cap || t.market_cap || 0),
-        graduated,
-        link: mint ? "https://pump.fun/coin/" + mint : "https://pump.fun/",
-        chart: mint ? "https://dexscreener.com/solana/" + mint : ""
-      };
-    };
-
-    const seenP = new Set();
-    const pons = [];
-    ponsList.forEach((t) => {
-      const c = mapPons(t);
-      if (!c.address || seenP.has(c.id)) return;
-      seenP.add(c.id);
-      pons.push(c);
-    });
-
-    const seenS = new Set();
-    const pump = [];
-    (Array.isArray(pumpRaw) ? pumpRaw : []).forEach((t) => {
-        const c = mapPump(t);
-        if (!c.address || seenS.has(c.id)) return;
-        seenS.add(c.id);
-        pump.push(c);
-      });
-
-    function usd(n) {
-      const v = Number(n || 0);
-      if (!v) return "—";
-      if (v >= 1e6) return "$" + (v/1e6).toFixed(2) + "M";
-      if (v >= 1e3) return "$" + Math.round(v).toLocaleString();
-      return "$" + v.toFixed(2);
-    }
-
-    async function dexMap(addresses) {
-      const out = {};
-      const uniq = addresses.filter(Boolean).filter((a,i,arr)=>arr.indexOf(a)===i);
-      for (let i = 0; i < uniq.length; i += 25) {
-        const chunk = uniq.slice(i, i + 25);
-        try {
-          const r = await fetch("https://api.dexscreener.com/latest/dex/tokens/" + chunk.join(","));
-          const j = await r.json();
-          (j.pairs || []).forEach((p) => {
-            const addr = String((p.baseToken && p.baseToken.address) || "").toLowerCase();
-            if (!addr) return;
-            const mc = Number(p.marketCap || p.fdv || 0);
-            const prev = out[addr];
-            if (prev && Number(prev.marketCap||0) >= mc) return;
-            out[addr] = {
-              marketCap: mc,
-              priceUsd: Number(p.priceUsd || 0),
-              pair: p.pairAddress || "",
-              chg: p.priceChange && p.priceChange.h24
-            };
-          });
-        } catch (e) {}
+  const ipfs = (u) => {
+    if (!u) return "";
+    const s = String(u);
+    const cid = (s.match(/ipfs\/([^/?#]+)/) || s.match(/^ipfs:\/\/([^/?#]+)/) || [])[1];
+    if (cid) return "https://w3s.link/ipfs/" + cid;
+    if (s.startsWith("ipfs://")) return "https://w3s.link/ipfs/" + s.slice(7).replace(/^ipfs\//, "");
+    return s;
+  };
+  const usd = (v) => {
+    v = Number(v || 0);
+    if (!v) return "—";
+    if (v >= 1e6) return "$" + (v / 1e6).toFixed(2) + "M";
+    if (v >= 1e3) return "$" + Math.round(v).toLocaleString();
+    return "$" + v.toFixed(2);
+  };
+  async function getJson(url, label) {
+    try {
+      const r = await fetch(url, { headers: hdr });
+      if (!r.ok) {
+        warnings.push(label + " " + r.status);
+        return null;
       }
-      return out;
+      return await r.json();
+    } catch (e) {
+      warnings.push(label + " " + String(e.message || e));
+      return null;
     }
-
-    let coins = pons.concat(pump);
-    const dx = await dexMap(coins.map((c) => c.address));
-    coins = coins.map((c) => {
-      const d = dx[String(c.address||"").toLowerCase()];
-      if (!d) return c;
-      if (!c.mcap && d.marketCap) {
-        c.mcap = d.marketCap;
-        c.vol = usd(d.marketCap);
-      }
-      if (d.priceUsd) c.priceUsd = d.priceUsd;
-      if (d.pair) c.pair = d.pair;
-      if (d.chg != null) c.chg24 = Number(d.chg);
-      return c;
-    });
-
-    res.status(200).json({ ok: true, coins });
-  } catch (e) {
-    res.status(200).json({ ok: false, error: String(e.message || e), coins: [] });
   }
+  function flattenPons(raw) {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw;
+    const bag = [];
+    const push = (x) => { if (Array.isArray(x)) bag.push.apply(bag, x); };
+    push(raw.items);
+    push(raw.launches);
+    push(raw.tokens);
+    push(raw.data);
+    if (raw.active) push(raw.active.items || raw.active.launches || raw.active);
+    if (raw.graduated) push(raw.graduated.items || raw.graduated.launches || raw.graduated);
+    if (raw.result) return flattenPons(raw.result);
+    return bag;
+  }
+  function mapPons(t) {
+    const addr = t.token || t.address || t.ca || "";
+    if (!addr) return null;
+    const apiPct = Number(t.graduationProgressPct != null ? t.graduationProgressPct : t.progress);
+    let goal = Number(t.graduationThresholdEth || 4.2);
+    if (!Number.isFinite(goal) || goal <= 0 || goal > 50) goal = 4.2;
+    let pct = Number.isFinite(apiPct) ? Math.max(0, Math.min(100, apiPct)) : 0;
+    const graduated = !!t.graduated || !!t.complete || pct >= 100;
+    if (graduated) pct = 100;
+    const launched = new Date(t.launchedAt || t.createdAt || Date.now()).getTime();
+    const mcap = Number(t.marketCapUsd || t.marketCap || 0);
+    return {
+      id: "rh-" + String(addr).toLowerCase(),
+      name: t.name || "Unnamed",
+      symbol: String(t.symbol || "?").toUpperCase(),
+      chain: "rh",
+      raised: (pct / 100) * goal,
+      goal,
+      curvePct: pct,
+      vol: mcap ? usd(mcap) : "—",
+      mcap,
+      created: launched,
+      desc: t.description || "",
+      logo: ipfs(t.logo || t.image || t.imageUrl || (t.metadata && t.metadata.image) || ""),
+      address: addr,
+      twitter: t.twitter || (t.socials && t.socials.twitter) || "",
+      telegram: t.telegram || (t.socials && t.socials.telegram) || "",
+      website: t.website || (t.socials && t.socials.website) || "",
+      lastTrade: t.latestBuyAt ? new Date(t.latestBuyAt).getTime() : launched,
+      volume: Number(t.liquidityUsd || mcap || 0),
+      graduated,
+      link: "https://www.ponsfamily.com/launchpad/" + addr
+    };
+  }
+  function mapPump(t) {
+    const mint = t.mint || t.address || "";
+    if (!mint) return null;
+    const created = Number(t.created_timestamp || Date.now());
+    const graduated = !!t.complete;
+    const curvePct = graduated ? 100 : Math.max(0, Math.min(100, Number(t.bonding_curve_progress || t.progress || 0)));
+    const mcap = Number(t.usd_market_cap || 0);
+    return {
+      id: "sol-" + mint,
+      name: t.name || "Unnamed",
+      symbol: String(t.symbol || "?").toUpperCase(),
+      chain: "sol",
+      raised: graduated ? 85 : (curvePct / 100) * 85,
+      goal: 85,
+      curvePct,
+      vol: mcap ? usd(mcap) : "—",
+      mcap,
+      created,
+      desc: t.description || "",
+      logo: t.image_uri || "",
+      address: mint,
+      twitter: t.twitter || "",
+      telegram: t.telegram || "",
+      website: t.website || "",
+      lastTrade: Number(t.last_trade_timestamp || created),
+      volume: mcap,
+      graduated,
+      link: "https://pump.fun/coin/" + mint
+    };
+  }
+  async function loadPons() {
+    const pages = [
+      "https://www.ponsfamily.com/api/pons-launches?explore=1&sort=newest&age=all&page=1&includeGraduated=true",
+      "https://www.ponsfamily.com/api/pons-launches?explore=1&sort=recentBuys&age=all&page=1&includeGraduated=true",
+      "https://www.ponsfamily.com/api/pons-launches?explore=1&sort=marketCap&age=all&page=1&includeGraduated=true"
+    ];
+    const raws = await Promise.all(pages.map((u, i) => getJson(u, "pons" + (i + 1))));
+    const seen = {};
+    const out = [];
+    raws.forEach((raw) => {
+      flattenPons(raw).forEach((t) => {
+        const c = mapPons(t);
+        if (!c || seen[c.id]) return;
+        seen[c.id] = 1;
+        out.push(c);
+      });
+    });
+    return out;
+  }
+  async function loadPump() {
+    const urls = [
+      "https://frontend-api-v3.pump.fun/coins?offset=0&limit=50&sort=created_timestamp&order=DESC&includeNsfw=false",
+      "https://frontend-api-v3.pump.fun/coins?offset=0&limit=50&sort=last_trade_timestamp&order=DESC&includeNsfw=false"
+    ];
+    const raws = await Promise.all(urls.map((u, i) => getJson(u, "pump" + (i + 1))));
+    const seen = {};
+    const out = [];
+    raws.forEach((raw) => {
+      const list = Array.isArray(raw) ? raw : (raw && (raw.coins || raw.items || raw.data)) || [];
+      list.forEach((t) => {
+        const c = mapPump(t);
+        if (!c || seen[c.id]) return;
+        seen[c.id] = 1;
+        out.push(c);
+      });
+    });
+    return out;
+  }
+  async function dexFill(coins) {
+    const need = coins.filter((c) => !c.mcap).slice(0, 40);
+    for (let i = 0; i < need.length; i += 20) {
+      const chunk = need.slice(i, i + 20).map((c) => c.address);
+      try {
+        const r = await fetch("https://api.dexscreener.com/latest/dex/tokens/" + chunk.join(","));
+        const j = await r.json();
+        (j.pairs || []).forEach((p) => {
+          const addr = String((p.baseToken && p.baseToken.address) || "").toLowerCase();
+          const hit = coins.find((c) => String(c.address).toLowerCase() === addr);
+          if (!hit) return;
+          const mc = Number(p.marketCap || p.fdv || 0);
+          if (mc && !hit.mcap) { hit.mcap = mc; hit.vol = usd(mc); }
+          if (p.priceUsd) hit.priceUsd = Number(p.priceUsd);
+          if (p.priceChange && p.priceChange.h24 != null) hit.chg24 = Number(p.priceChange.h24);
+        });
+      } catch (e) {
+        warnings.push("dex " + String(e.message || e));
+      }
+    }
+    return coins;
+  }
+
+  const pons = wantPons ? await loadPons() : [];
+  const pump = wantPump ? await loadPump() : [];
+  if (!pons.length && wantPons) warnings.push("pons empty");
+  if (!pump.length && wantPump) warnings.push("pump empty");
+  let coins = pons.concat(pump);
+  coins = await dexFill(coins);
+  coins.sort((a, b) => (b.created || 0) - (a.created || 0));
+  res.status(200).json({ ok: true, coins, counts: { pons: pons.length, pump: pump.length }, warnings });
 };
