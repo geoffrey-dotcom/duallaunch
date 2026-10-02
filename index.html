@@ -1133,10 +1133,31 @@
           if (note) note.textContent = "Live pair chart · " + (c.mcap ? "MC " + money(c.mcap) : "mcap pending");
         }
       } catch (e) {
-        if (note) note.textContent = "Candle feed down. Use Open DexScreener.";
+        if (note) note.textContent = "Candle feed down. Use Open chart.";
       }
     }
-    async function renderCoin(id) {
+    async 
+    function tradeCoin(id, side) {
+      const c = coins.find((x) => x.id === id);
+      if (!c) return;
+      const usd = Number(($("tradeUsd") && $("tradeUsd").value) || 0);
+      const note = $("tradeNote");
+      const frame = $("tradeFrame");
+      if (!usd || usd < 1) { if (note) note.textContent = "Enter an amount in USD."; return; }
+      if (c.chain !== "sol") {
+        if (note) note.textContent = "PONS trades open on the official pad.";
+        window.open(c.link || "https://www.ponsfamily.com", "_blank", "noopener");
+        return;
+      }
+      const mint = encodeURIComponent(c.address || "");
+      const url = side === "sell"
+        ? "https://jup.ag/swap/" + mint + "-SOL"
+        : "https://jup.ag/swap/SOL-" + mint;
+      if (note) note.textContent = (side === "sell" ? "Sell " : "Buy ") + c.symbol + " for about $" + usd + ". Set that amount below and sign in your wallet.";
+      if (frame) frame.innerHTML = '<iframe title="DualLaunch swap" src="' + url + '" style="width:100%;height:640px;border:0;border-radius:16px;margin-top:12px;background:#101216"></iframe>';
+    }
+
+    function renderCoin(id) {
       const c = coins.find((x) => x.id === id);
       if (!c) return;
       const g = graduated(c);
@@ -1166,13 +1187,24 @@
             <div class="bar" style="height:8px;margin-top:16px"><i style="width:${pct(c)}%"></i></div>
             <p class="lede" style="margin-top:14px">${esc((c.desc || "No description.").slice(0, 280))}</p>
             ${socialBtns(c, false)}
+            <div class="tradebox">
+              <b>Trade on DualLaunch</b>
+              <label>Amount in USD</label>
+              <input id="tradeUsd" type="number" min="1" step="1" value="25" />
+              <div class="split">
+                <button class="btn btn-lime" type="button" onclick="tradeCoin('${esc(c.id)}','buy')">Buy</button>
+                <button class="btn btn-violet" type="button" onclick="tradeCoin('${esc(c.id)}','sell')">Sell</button>
+              </div>
+              <p class="tick" id="tradeNote">Solana swap stays on DualLaunch. PONS opens the official pad.</p>
+              <div id="tradeFrame"></div>
+            </div>
             <p class="tick" style="margin-top:10px;word-break:break-all">${esc(c.address || "")}</p>
           </div>
           <div class="panel">
             <p class="kicker">${g ? "Graduated" : "On the curve"}</p>
             <div class="split" style="margin-top:14px">
               <button class="btn btn-lime" type="button" onclick="window.open('${esc(pad)}','_blank','noopener')">Open coin</button>
-              <button class="btn btn-violet" type="button" onclick="window.open('${esc(chart)}','_blank','noopener')">Open DexScreener</button>
+              <button class="btn btn-violet" type="button" onclick="window.open('${esc(chart)}','_blank','noopener')">Open chart</button>
             </div>
             <div class="split" style="margin-top:8px">
               <button class="btn btn-ghost" type="button" onclick="copyText('${esc(c.address || "")}')">Copy contract</button>
@@ -2056,5 +2088,5 @@
     startLive();
     window.addEventListener("hashchange", bootHash);
   </script>
-</body>
+<style id="dl-tradeonly">.tradebox{margin-top:16px;padding:14px;border:1px solid #262b31;border-radius:14px;background:#101216;display:grid;gap:8px}.tradebox input{background:#0c0e12;color:#fff;border:1px solid #333;border-radius:10px;padding:10px}</style></body>
 </html>
