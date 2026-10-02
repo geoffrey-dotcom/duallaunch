@@ -1025,10 +1025,9 @@
       el.innerHTML = list.map(tileHtml).join("");
     }
     function renderBoard(force) {
-      const canDual = false && filter === "all" && $("dualBoard") && $("boardNew") && $("boardHot");
+      const canDual = filter === "all" && $("dualBoard") && $("boardNew") && $("boardHot");
       if ($("dualBoard")) $("dualBoard").style.display = canDual ? "" : "none";
-      if ($("singleBoard")) $("singleBoard").style.display = "";
-      if ($("dualBoard")) $("dualBoard").style.display = "none";
+      if ($("singleBoard")) $("singleBoard").style.display = canDual ? "none" : "";
       savePrefs();
       if (canDual) {
         const base = visible();
@@ -1137,28 +1136,7 @@
         if (note) note.textContent = "Candle feed down. Use Open DexScreener.";
       }
     }
-    async 
-    function tradeCoin(id, side) {
-      const c = coins.find((x) => x.id === id);
-      if (!c) return;
-      const usd = Number(($("tradeUsd") && $("tradeUsd").value) || 0);
-      const note = $("tradeNote");
-      const frame = $("tradeFrame");
-      if (!usd || usd < 1) { if (note) note.textContent = "Enter an amount in USD."; return; }
-      if (c.chain !== "sol") {
-        if (note) note.textContent = "PONS trades open on the official pad.";
-        window.open(c.link || "https://www.ponsfamily.com", "_blank", "noopener");
-        return;
-      }
-      const mint = c.address;
-      const url = side === "sell"
-        ? "https://jup.ag/swap/" + encodeURIComponent(mint) + "-SOL"
-        : "https://jup.ag/swap/SOL-" + encodeURIComponent(mint);
-      if (note) note.textContent = (side === "sell" ? "Sell " : "Buy ") + c.symbol + " for about $" + usd + ". Set that amount in the swap and sign in your wallet.";
-      if (frame) frame.innerHTML = '<iframe title="Swap" src="' + url + '" style="width:100%;height:620px;border:0;border-radius:16px;margin-top:12px;background:#101216"></iframe>';
-    }
-
-    function renderCoin(id) {
+    async function renderCoin(id) {
       const c = coins.find((x) => x.id === id);
       if (!c) return;
       const g = graduated(c);
@@ -1188,17 +1166,6 @@
             <div class="bar" style="height:8px;margin-top:16px"><i style="width:${pct(c)}%"></i></div>
             <p class="lede" style="margin-top:14px">${esc((c.desc || "No description.").slice(0, 280))}</p>
             ${socialBtns(c, false)}
-            <div class="tradebox">
-              <b>Trade</b>
-              <label>Amount in USD</label>
-              <input id="tradeUsd" type="number" min="1" step="1" value="25" />
-              <div class="split">
-                <button class="btn btn-lime" type="button" onclick="tradeCoin('${esc(c.id)}','buy')">Buy</button>
-                <button class="btn btn-violet" type="button" onclick="tradeCoin('${esc(c.id)}','sell')">Sell</button>
-              </div>
-              <p class="tick" id="tradeNote">Solana signs in your wallet. PONS opens the official pad.</p>
-              <div id="tradeFrame"></div>
-            </div>
             <p class="tick" style="margin-top:10px;word-break:break-all">${esc(c.address || "")}</p>
           </div>
           <div class="panel">
@@ -2089,15 +2056,5 @@
     startLive();
     window.addEventListener("hashchange", bootHash);
   </script>
-
-<style id="dl-safe">
-  .tradebox{margin-top:16px;padding:14px;border:1px solid #262b31;border-radius:14px;background:#101216;display:grid;gap:8px;}
-  .tradebox input{background:#0c0e12;color:#fff;border:1px solid #333;border-radius:10px;padding:10px;}
-  @media (max-width:980px){
-    .toolbar{flex-wrap:wrap !important;overflow:visible !important;}
-    .tile{min-width:0 !important;width:100% !important;}
-    main{overflow-x:hidden;}
-  }
-</style>
 </body>
 </html>
