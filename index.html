@@ -1025,9 +1025,10 @@
       el.innerHTML = list.map(tileHtml).join("");
     }
     function renderBoard(force) {
-      const canDual = filter === "all" && $("dualBoard") && $("boardNew") && $("boardHot");
+      const canDual = false && filter === "all" && $("dualBoard") && $("boardNew") && $("boardHot");
       if ($("dualBoard")) $("dualBoard").style.display = canDual ? "" : "none";
-      if ($("singleBoard")) $("singleBoard").style.display = canDual ? "none" : "";
+      if ($("singleBoard")) $("singleBoard").style.display = "";
+      if ($("dualBoard")) $("dualBoard").style.display = "none";
       savePrefs();
       if (canDual) {
         const base = visible();
