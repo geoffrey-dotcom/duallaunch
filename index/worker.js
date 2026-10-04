@@ -139,20 +139,26 @@ async function addTrade(row) {
 
 function pumpIx(tx) {
   const msg = tx.transaction.message;
-  const keys = msg.accountKeys.map((k) => (k.pubkey ? k.pubkey.toBase58() : k.toBase58()));
+  const loaded = tx.meta && tx.meta.loadedAddresses;
+  const accountKeys = typeof msg.getAccountKeys === "function"
+    ? msg.getAccountKeys({ accountKeysFromLookups: loaded })
+    : null;
+  const keys = accountKeys
+    ? accountKeys.staticAccountKeys.concat(accountKeys.accountKeysFromLookups || []).map((k) => k.toBase58())
+    : msg.accountKeys.map((k) => (k.pubkey ? k.pubkey.toBase58() : k.toBase58()));
   const out = [];
-  const list = msg.instructions || [];
+  const list = msg.compiledInstructions || msg.instructions || [];
   for (const ix of list) {
     const program = keys[ix.programIdIndex];
     if (program !== PUMP.toBase58()) continue;
-    const accounts = (ix.accounts || []).map((i) => keys[i]);
+    const accounts = (ix.accounts || ix.accountKeyIndexes || []).map((i) => keys[i]);
     out.push(accounts);
   }
   return out;
 }
 
 async function handlePumpSig(sig) {
-  const tx = await connection.getTransaction(sig, { maxSupportedTransactionVersion: 0 });
+  const tx = await connection.getTransaction(sig, { maxSupportedTransactionVersion: 1 });
   if (!tx || !tx.meta) return;
   const logs = tx.meta.logMessages || [];
   const kind = logs.some((l) => l.includes("Instruction: Create"))
