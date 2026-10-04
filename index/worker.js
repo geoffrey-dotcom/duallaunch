@@ -278,7 +278,7 @@ async function tick() {
 
 async function main() {
   await pool.query("select 1");
-  console.log("index worker up");
+  console.log("index worker up build 3");
   for (;;) {
     try { await tick(); } catch (e) { console.error("tick", e.message); }
     await sleep(8000);
