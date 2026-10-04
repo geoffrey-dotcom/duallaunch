@@ -40,14 +40,29 @@ function sleep(ms) {
 }
 
 async function quoteUsd() {
-  if (Date.now() - quotes.at < 30000 && quotes.sol && quotes.eth) return quotes;
-  const url = "https://hermes.pyth.network/v2/updates/price/latest?ids[]=" + SOL_USD_ID + "&ids[]=" + ETH_USD_ID;
-  const r = await fetch(url);
-  const j = await r.json();
-  for (const row of j.parsed || []) {
-    const px = Number(row.price.price) * Math.pow(10, Number(row.price.expo));
-    if (row.id === SOL_USD_ID.slice(2) || ("0x" + row.id) === SOL_USD_ID) quotes.sol = px;
-    if (row.id === ETH_USD_ID.slice(2) || ("0x" + row.id) === ETH_USD_ID) quotes.eth = px;
+  if (Date.now() - quotes.at < 30000 && quotes.sol) return quotes;
+  try {
+    const url = "https://hermes.pyth.network/v2/updates/price/latest?ids[]=" + SOL_USD_ID + "&ids[]=" + ETH_USD_ID;
+    const r = await fetch(url);
+    const text = await r.text();
+    if (text.startsWith("{")) {
+      const j = JSON.parse(text);
+      for (const row of j.parsed || []) {
+        const px = Number(row.price.price) * Math.pow(10, Number(row.price.expo));
+        const id = String(row.id || "");
+        if (id.includes(SOL_USD_ID.slice(2))) quotes.sol = px;
+        if (id.includes(ETH_USD_ID.slice(2))) quotes.eth = px;
+      }
+    }
+  } catch (e) {}
+  if (!quotes.sol) {
+    const r = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=solana,ethereum&vs_currencies=usd");
+    const text = await r.text();
+    if (text.startsWith("{")) {
+      const j = JSON.parse(text);
+      if (j.solana) quotes.sol = Number(j.solana.usd);
+      if (j.ethereum) quotes.eth = Number(j.ethereum.usd);
+    }
   }
   quotes.at = Date.now();
   return quotes;
@@ -145,24 +160,28 @@ function asBase58(k) {
   return "";
 }
 
-function pumpIx(tx) {
+function txKeys(tx) {
   const msg = tx.transaction.message;
   const loaded = tx.meta && tx.meta.loadedAddresses;
-  const accountKeys = typeof msg.getAccountKeys === "function"
-    ? msg.getAccountKeys({ accountKeysFromLookups: loaded })
-    : null;
-  const keyAt = (i) => {
-    if (accountKeys && typeof accountKeys.get === "function") return asBase58(accountKeys.get(i));
-    return asBase58(msg.accountKeys && msg.accountKeys[i]);
-  };
-  const out = [];
-  const list = msg.compiledInstructions || msg.instructions || [];
-  for (const ix of list) {
-    if (keyAt(ix.programIdIndex) !== PUMP.toBase58()) continue;
-    const accounts = (ix.accountKeyIndexes || ix.accounts || []).map(keyAt).filter(Boolean);
-    out.push(accounts);
+  if (typeof msg.getAccountKeys === "function") {
+    const accountKeys = msg.getAccountKeys({ accountKeysFromLookups: loaded });
+    const out = [];
+    for (let i = 0; i < accountKeys.length; i++) out.push(asBase58(accountKeys.get(i)));
+    return out.filter(Boolean);
   }
-  return out;
+  return (msg.accountKeys || []).map(asBase58).filter(Boolean);
+}
+
+function findPumpMint(tx) {
+  const keys = txKeys(tx);
+  const set = new Set(keys);
+  for (const k of keys) {
+    try {
+      const pda = curvePda(new PublicKey(k)).toBase58();
+      if (set.has(pda)) return k;
+    } catch (e) {}
+  }
+  return "";
 }
 
 async function handlePumpSig(sig) {
@@ -177,8 +196,7 @@ async function handlePumpSig(sig) {
         ? "sell"
         : "";
   if (!kind) return;
-  const groups = pumpIx(tx);
-  const mintKey = groups.map((a) => a[0]).find(Boolean);
+  const mintKey = findPumpMint(tx);
   if (!mintKey) return;
   let mint;
   try { mint = new PublicKey(mintKey); } catch { return; }
@@ -278,7 +296,7 @@ async function tick() {
 
 async function main() {
   await pool.query("select 1");
-  console.log("index worker up build 3");
+  console.log("index worker up build 4");
   for (;;) {
     try { await tick(); } catch (e) { console.error("tick", e.message); }
     await sleep(8000);
