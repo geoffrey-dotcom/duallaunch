@@ -137,21 +137,29 @@ async function addTrade(row) {
   );
 }
 
+function asBase58(k) {
+  if (!k) return "";
+  if (typeof k === "string") return k;
+  if (typeof k.toBase58 === "function") return k.toBase58();
+  if (k.pubkey && typeof k.pubkey.toBase58 === "function") return k.pubkey.toBase58();
+  return "";
+}
+
 function pumpIx(tx) {
   const msg = tx.transaction.message;
   const loaded = tx.meta && tx.meta.loadedAddresses;
   const accountKeys = typeof msg.getAccountKeys === "function"
     ? msg.getAccountKeys({ accountKeysFromLookups: loaded })
     : null;
-  const keys = accountKeys
-    ? accountKeys.staticAccountKeys.concat(accountKeys.accountKeysFromLookups || []).map((k) => k.toBase58())
-    : msg.accountKeys.map((k) => (k.pubkey ? k.pubkey.toBase58() : k.toBase58()));
+  const keyAt = (i) => {
+    if (accountKeys && typeof accountKeys.get === "function") return asBase58(accountKeys.get(i));
+    return asBase58(msg.accountKeys && msg.accountKeys[i]);
+  };
   const out = [];
   const list = msg.compiledInstructions || msg.instructions || [];
   for (const ix of list) {
-    const program = keys[ix.programIdIndex];
-    if (program !== PUMP.toBase58()) continue;
-    const accounts = (ix.accounts || ix.accountKeyIndexes || []).map((i) => keys[i]);
+    if (keyAt(ix.programIdIndex) !== PUMP.toBase58()) continue;
+    const accounts = (ix.accountKeyIndexes || ix.accounts || []).map(keyAt).filter(Boolean);
     out.push(accounts);
   }
   return out;
