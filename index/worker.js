@@ -93,6 +93,8 @@ async function readMeta(mint) {
     return null;
   }
 }
+
+function curvePda(mint) {
   return PublicKey.findProgramAddressSync([Buffer.from("bonding-curve"), mint.toBuffer()], PUMP)[0];
 }
 
@@ -148,9 +150,9 @@ async function upsertToken(row) {
        price_usd = excluded.price_usd,
        mcap_usd = excluded.mcap_usd,
        curve = coalesce(excluded.curve, tokens.curve),
-       name = coalesce(nullif(tokens.name, ''), nullif(excluded.name, ''), tokens.name),
-       symbol = coalesce(nullif(tokens.symbol, ''), nullif(excluded.symbol, ''), tokens.symbol),
-       logo = coalesce(tokens.logo, excluded.logo),
+       name = coalesce(nullif(excluded.name, ''), nullif(tokens.name, '')),
+       symbol = coalesce(nullif(excluded.symbol, ''), nullif(tokens.symbol, '')),
+       logo = coalesce(nullif(excluded.logo, ''), tokens.logo),
        last_trade_at = now(),
        updated_at = now()`,
     [row.id, row.chain, row.address, row.name || null, row.symbol || null, row.logo || null, row.curve || null, row.createdAt || null, row.graduated, row.curvePct, row.priceUsd, row.mcapUsd]
@@ -213,11 +215,11 @@ async function handlePumpSig(sig) {
   const tx = await connection.getTransaction(sig, { maxSupportedTransactionVersion: 1 });
   if (!tx || !tx.meta) return;
   const logs = tx.meta.logMessages || [];
-  const kind = logs.some((l) => l.includes("Instruction: Create"))
+  const kind = logs.some((l) => /Instruction: Create/.test(l))
     ? "create"
-    : logs.some((l) => l.includes("Instruction: Buy"))
+    : logs.some((l) => /Instruction: Buy/.test(l))
       ? "buy"
-      : logs.some((l) => l.includes("Instruction: Sell"))
+      : logs.some((l) => /Instruction: Sell/.test(l))
         ? "sell"
         : "";
   if (!kind) return;
@@ -233,13 +235,14 @@ async function handlePumpSig(sig) {
   const id = "sol-" + mintKey;
   const at = new Date((tx.blockTime || Math.floor(Date.now() / 1000)) * 1000).toISOString();
   const meta = await readMeta(mint);
+  const logo = meta && meta.uri ? await resolveLogo(meta.uri) : "";
   await upsertToken({
     id,
     chain: "sol",
     address: mintKey,
     name: meta && meta.name,
     symbol: meta && meta.symbol,
-    logo: meta && meta.uri,
+    logo,
     curve: curve.pda,
     createdAt: kind === "create" ? at : null,
     graduated: curve.complete,
@@ -290,6 +293,52 @@ async function rh(method, params) {
   return j.result;
 }
 
+
+async function resolveLogo(uri) {
+  const raw = String(uri || "").trim();
+  if (!raw || raw.startsWith("data:image")) return raw;
+  const url = raw.startsWith("ipfs://")
+    ? "https://ipfs.io/ipfs/" + raw.slice(7)
+    : raw.startsWith("ar://")
+      ? "https://arweave.net/" + raw.slice(5)
+      : raw;
+  if (!/^https?:\/\//i.test(url)) return "";
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 4000);
+    const r = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(t);
+    const ctype = String(r.headers.get("content-type") || "");
+    if (ctype.includes("image")) return url;
+    const text = await r.text();
+    if (!text.trim().startsWith("{")) return "";
+    const j = JSON.parse(text);
+    const img = String(j.image || j.logo || "");
+    if (img.startsWith("ipfs://")) return "https://ipfs.io/ipfs/" + img.slice(7);
+    if (img.startsWith("ar://")) return "https://arweave.net/" + img.slice(5);
+    return img;
+  } catch (e) {
+    return "";
+  }
+}
+
+function decodeAbiString(hex) {
+  const h = String(hex || "").replace(/^0x/, "");
+  if (h.length < 128) return "";
+  const len = parseInt(h.slice(64, 128), 16);
+  if (!len || len > 64) return "";
+  return Buffer.from(h.slice(128, 128 + len * 2), "hex").toString("utf8").replace(/\0/g, "").trim();
+}
+
+async function erc20String(token, selector) {
+  try {
+    const data = await rh("eth_call", [{ to: token, data: selector }, "latest"]);
+    return decodeAbiString(data);
+  } catch (e) {
+    return "";
+  }
+}
+
 async function pollPons() {
   const latest = parseInt(await rh("eth_blockNumber", []), 16);
   const from = Number(await cursor("rh-block")) || Math.max(0, latest - 20);
@@ -304,10 +353,14 @@ async function pollPons() {
   for (const log of logs) {
     const token = "0x" + String(log.topics[1] || "").slice(-40);
     if (token.length !== 42) continue;
+    const name = await erc20String(token, "0x06fdde03");
+    const symbol = await erc20String(token, "0x95d89b41");
     await upsertToken({
       id: "rh-" + token,
       chain: "rh",
       address: token,
+      name,
+      symbol,
       graduated: false,
       curvePct: 0,
       priceUsd: 0,
@@ -325,7 +378,7 @@ async function tick() {
 
 async function main() {
   await pool.query("select 1");
-  console.log("index worker up build 6");
+  console.log("index worker up build 7");
   for (;;) {
     try { await tick(); } catch (e) { console.error("tick", e.message); }
     await sleep(8000);
