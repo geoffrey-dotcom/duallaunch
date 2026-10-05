@@ -17,24 +17,25 @@ module.exports = async function handler(req, res) {
   }
   try {
     const token = await pool.query(
-      "select price_usd, mcap_usd from tokens where id = $1",
-      [tokenId]
+      "select id, price_usd, mcap_usd from tokens where id = $1 or lower(address) = lower($2) order by updated_at desc nulls last limit 1",
+      [tokenId, addr]
     );
     const row = token.rows[0] || {};
+    const id = row.id || tokenId;
     const q = await pool.query(
-      `select side, price_usd, block_time
+      `select side, price_usd, usd, block_time
        from trades
        where token_id = $1
        order by block_time desc
        limit 30`,
-      [tokenId]
+      [id]
     );
     const counts = await pool.query(
       `select side, count(*)::int n
        from trades
        where token_id = $1 and block_time > now() - interval '24 hours'
        group by side`,
-      [tokenId]
+      [id]
     );
     const buys = (counts.rows.find((r) => r.side === "buy") || {}).n || 0;
     const sells = (counts.rows.find((r) => r.side === "sell") || {}).n || 0;
@@ -47,7 +48,7 @@ module.exports = async function handler(req, res) {
       sells,
       trades: q.rows.map((t) => ({
         kind: t.side,
-        usd: null,
+        usd: t.usd == null ? null : Number(t.usd),
         tokens: null,
         price: Number(t.price_usd || 0),
         at: t.block_time
