@@ -4,6 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>DualLaunch — PONS & pump.fun</title>
+  <link rel="icon" type="image/jpeg" href="/logo.jpg" />
+  <link rel="apple-touch-icon" href="/logo.jpg" />
+  <meta property="og:title" content="DualLaunch — live meme coin index" />
+  <meta property="og:description" content="The DualLaunch index: live charts and trades for pump.fun and PONS launches." />
+  <meta property="og:image" content="https://www.duallaunch.xyz/logo.jpg" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:image" content="https://www.duallaunch.xyz/logo.jpg" />
   <script src="https://plugin.jup.ag/plugin-v1.js" data-preload defer></script>
   <script defer src="https://cloud.umami.is/script.js" data-website-id="97ff0af1-c6d3-476e-8967-14d0cd349140"></script>
   <meta name="description" content="Live board for meme coin launches on Robinhood Chain (PONS) and Solana (pump.fun)." />
@@ -633,7 +640,7 @@
         <input id="subWeb" placeholder="https://…" />
         <label>Description</label>
         <textarea id="subDesc" placeholder="Short description"></textarea>
-        <p class="tick" style="margin-top:12px">Boost (optional): a paid pin on DualLaunch Listed only — not DexScreener. Message DualLaunch on X. Free listing stays free.</p>
+        <p class="tick" style="margin-top:12px">Boost (optional): a paid pin on DualLaunch Listed. Message DualLaunch on X. Free listing stays free.</p>
         <button class="btn btn-lime" type="button" style="margin-top:14px" onclick="submitToken()">List on DualLaunch</button>
         <p class="tick" id="subStatus" style="margin-top:10px"></p>
       </div>
@@ -822,22 +829,13 @@
     }
     function embedChart(c) {
       const chain = c.chain === "rh" ? "robinhood" : "solana";
-      return embedify(c.chart || ("https://dexscreener.com/" + chain + "/" + (c.address || "")));
+      return "about:blank";
     }
     function liveCandle(c) {
       return "about:blank";
     }
     async function resolveDexPair(c) {
-      if (!c.address) return embedChart(c);
-      try {
-        const r = await fetch("https://api.dexscreener.com/latest/dex/tokens/" + encodeURIComponent(c.address));
-        const j = await r.json();
-        const pairs = j.pairs || [];
-        const want = c.chain === "rh" ? "robinhood" : "solana";
-        const hit = pairs.find((p) => String(p.chainId || p.chain || "").toLowerCase().includes(want.replace("robinhood","robin"))) || pairs[0];
-        if (hit && hit.url) return embedify(hit.url);
-      } catch (e) {}
-      return embedChart(c);
+      return "about:blank";
     }
     async function mountDex(c) {
       const wrap = document.querySelector("#view-coin .chart-wrap");
@@ -850,6 +848,15 @@
         if (!document.getElementById("view-coin").classList.contains("on")) return;
         if (note) note.style.display = "block";
       }, 7000);
+    }
+    const DL_API = "https://duallaunch-fix-buddy.lovable.app/api/public";
+    function padLink(c) {
+      const a = encodeURIComponent(c.address || "");
+      if (c.link && !/dexscreener|birdeye|geckoterminal/i.test(c.link)) return c.link;
+      return c.chain === "rh" ? "https://www.ponsfamily.com/token/" + a : "https://pump.fun/coin/" + a;
+    }
+    function explorerLink(c) {
+      return (c.chain === "rh" ? "https://robinhoodchain.blockscout.com/token/" : "https://solscan.io/token/") + encodeURIComponent(c.address || "");
     }
     function savePrefs() {
       try { localStorage.setItem("dl-prefs", JSON.stringify({ filter, sortBy, ageBy })); } catch (e) {}
@@ -1077,6 +1084,8 @@
       board.dataset.ids = ids;
     }
 
+    const DL_MARK = new Image();
+    DL_MARK.src = "/logo.jpg";
     function paintCandles(canvas, rows) {
       if (!canvas || !rows || !rows.length) return false;
       const box = canvas.parentElement;
@@ -1091,9 +1100,15 @@
       const ctx = canvas.getContext("2d");
       ctx.fillStyle = "#07070c"; ctx.fillRect(0,0,w,h);
       const pad = 16 * dpr;
+      // Show the most recent candles at a readable width, and ignore single extreme wicks when scaling.
+      rows = rows.filter(r=>Number(r.c) > 0).slice(-Math.max(60, Math.floor(cssW / 5)));
+      if (!rows.length) return false;
+      const pick = function(arr, q){ const s2 = arr.slice().sort(function(x,y){return x-y;}); return s2[Math.min(s2.length-1, Math.max(0, Math.floor(q*(s2.length-1))))]; };
       const lows = rows.map(r=>Number(r.l||r.c||0));
       const highs = rows.map(r=>Number(r.h||r.c||0));
-      let min = Math.min.apply(null, lows), max = Math.max.apply(null, highs);
+      const bodyLo = rows.map(r=>Math.min(Number(r.o||r.c), Number(r.c)));
+      const bodyHi = rows.map(r=>Math.max(Number(r.o||r.c), Number(r.c)));
+      let min = Math.min(pick(lows, 0.02), Math.min.apply(null, bodyLo)), max = Math.max(pick(highs, 0.98), Math.max.apply(null, bodyHi));
       if (!(max > min)) { min = min * 0.98; max = max * 1.02 || 1; }
       const span = max - min;
       const n = rows.length;
@@ -1107,7 +1122,7 @@
       rows.forEach(function(r,i){
         const o=Number(r.o||r.c), c=Number(r.c), hi=Number(r.h||c), lo=Number(r.l||c);
         const x = pad + slot * i + slot/2;
-        const y = function(v){ return pad + (1 - (v-min)/span) * (h-pad*2); };
+        const y = function(v){ return pad + (1 - (Math.min(max, Math.max(min, v))-min)/span) * (h-pad*2); };
         const up = c >= o;
         ctx.strokeStyle = up ? "#b8ff3a" : "#ff6b9a";
         ctx.fillStyle = up ? "#b8ff3a" : "#ff6b9a";
@@ -1117,6 +1132,22 @@
         const bh = Math.max(2 * dpr, Math.abs(y(c)-y(o)));
         ctx.fillRect(x - bw/2, top, bw, bh);
       });
+      // DualLaunch index stamp
+      const ms = 22 * dpr, mx = pad, my = pad;
+      ctx.globalAlpha = 0.9;
+      if (DL_MARK.complete && DL_MARK.naturalWidth) {
+        ctx.save(); ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(mx, my, ms, ms, 5 * dpr); else ctx.rect(mx, my, ms, ms);
+        ctx.clip();
+        const iw = DL_MARK.naturalWidth, ih = DL_MARK.naturalHeight, side = Math.min(iw, ih);
+        ctx.drawImage(DL_MARK, (iw - side) / 2, (ih - side) / 2, side, side, mx, my, ms, ms);
+        ctx.restore();
+      }
+      ctx.fillStyle = "#f3f4f8";
+      ctx.font = "800 " + (12 * dpr) + "px Manrope, sans-serif";
+      ctx.textBaseline = "middle";
+      ctx.fillText("DualLaunch Index", mx + ms + 8 * dpr, my + ms / 2);
+      ctx.globalAlpha = 1;
       return true;
     }
     async function loadDlCandles(c) {
@@ -1129,23 +1160,26 @@
         const rows = j.candles || [];
         const iframe = $("dexChart");
         if (rows.length >= 3) {
+          canvas.style.display = "block";
+          if (iframe) { iframe.style.display = "none"; }
           paintCandles(canvas, rows);
           if (note) note.textContent = rows.length + " candles · " + (j.source||"pool") + (c.mcap ? " · MC " + money(c.mcap) : "");
         } else {
           if (canvas) canvas.style.display = "block";
           if (iframe) { iframe.style.display = "none"; iframe.src = "about:blank"; }
-          if (note) note.textContent = "DualLaunch chart needs a few of our own trades first.";
+          if (note) note.textContent = "No price history yet. The DualLaunch index adds a candle every minute.";
+          canvas.style.display = "none";
         }
       } catch (e) {
-        if (note) note.textContent = "Candle feed down. Use Open DexScreener.";
+        if (note) note.textContent = "Chart is loading slowly. It retries in a few seconds.";
       }
     }
     async function renderCoin(id) {
       const c = coins.find((x) => x.id === id);
       if (!c) return;
       const g = graduated(c);
-      const pad = c.link || (c.chain === "rh" ? PONS_CREATE : PUMP_CREATE);
-      const chart = c.chart || pad;
+      const pad = padLink(c);
+      const chart = explorerLink(c);
       const dex = liveCandle(c);
       $("view-coin").innerHTML = `
         <button class="btn btn-ghost" onclick="show('board')" style="margin-bottom:16px">← Board</button>
@@ -1164,7 +1198,7 @@
             </div>
             <div class="chart-wrap">
               <canvas id="dlCandles" class="chart-frame" width="900" height="360" style="display:none"></canvas>
-              <p class="tick" id="chartNote" style="padding:12px">Chart comes from the official pad. Open coin if this box stays empty.</p>
+              <p class="tick" id="chartNote" style="padding:12px">Loading chart…</p>
               <iframe class="chart-frame" id="dexChart" title="Chart" src="about:blank" style="height:0;min-height:0;display:none"></iframe>
             </div>
             <div class="bar" style="height:8px;margin-top:16px"><i style="width:${pct(c)}%"></i></div>
@@ -1176,24 +1210,24 @@
             <p class="kicker">${g ? "Graduated" : "On the curve"}</p>
             <div class="split" style="margin-top:14px">
               <button class="btn btn-lime" type="button" onclick="window.open('${esc(pad)}','_blank','noopener')">Open coin</button>
-              <button class="btn btn-violet" type="button" onclick="window.open('${esc(chart)}','_blank','noopener')">Open DexScreener</button>
+              <button class="btn btn-violet" type="button" onclick="window.open('${esc(chart)}','_blank','noopener')">Open explorer</button>
             </div>
             <div class="split" style="margin-top:8px">
               <button class="btn btn-ghost" type="button" onclick="copyText('${esc(c.address || "")}')">Copy contract</button>
               <button class="btn btn-ghost" type="button" onclick="addToken('${esc(c.id)}')">Add to wallet</button>
             </div>
             <p class="tick" style="margin-top:10px">${c.chain === "rh" ? "Explorer: robinhoodchain.blockscout.com" : "Explorer: solscan.io"}</p>
-            <button class="btn btn-ghost" style="width:100%;margin-top:8px" type="button" onclick="window.open('${c.chain === "rh" ? "https://robinhoodchain.blockscout.com/token/" : "https://solscan.io/token/"}' + '${esc(c.address || "")}','_blank','noopener')">Open explorer</button>
             <div class="split" style="margin-top:8px">
               <button class="btn btn-ghost" type="button" onclick="togglePin('${esc(c.id)}')">Watchlist</button>
               <button class="btn btn-ghost" type="button" onclick="shareCoin('${esc(c.id)}')">Copy link</button>
             </div>
-            <p class="warn">${c.chain === "rh" ? "PONS chart is GeckoTerminal. Empty = no pool yet. Open the pad if the chart is empty." : "Solana chart is Birdeye candles (not DexScreener). No pair = empty. Open the pad if the chart is empty."}</p>
+            <p class="warn">${c.chain === "rh" ? "Chart and trades: DualLaunch index (PONS + Robinhood Chain on-chain)." : "Chart and trades: DualLaunch index (pump.fun trades)."}</p>
           </div>
         </div>`;
       setTimeout(() => {
         const n = document.getElementById("chartNote");
-        if (n && document.getElementById("view-coin").classList.contains("on")) n.style.display = "block";
+        const cv = document.getElementById("dlCandles");
+        if (n && document.getElementById("view-coin").classList.contains("on") && !(cv && cv.style.display === "block")) n.style.display = "block";
       }, 8000);
       enrichCoin(c);
       loadDlCandles(c);
@@ -1224,6 +1258,7 @@
             c.vol = "$" + Math.round(j.mcap).toLocaleString();
           }
           const mc = Number(c.mcap || 0);
+          if (j.price) c.priceUsd = j.price;
           const px = Number(c.priceUsd || 0);
           html += "<p class='kicker'>Market</p>";
           html += "<div class='stats'><div class='stat'><b>MC</b>" + (mc ? "$" + Math.round(mc).toLocaleString("en-US") : "—") + "</div>";
@@ -1304,7 +1339,8 @@
         box.innerHTML = html;
       }
       tick();
-      tradeTimer = setInterval(tick, 8000);
+      let chartTicks = 0;
+      tradeTimer = setInterval(function(){ tick(); if (++chartTicks % 2 === 0) loadDlCandles(c); }, 8000);
     }
 
     function walletLabel() {
@@ -1671,46 +1707,6 @@
 
     async function quoteVisible() {
       return;
-      const rows = coins.slice(0, 40);
-      const sol = rows.filter((c) => c.chain !== "rh" && c.address).map((c) => c.address);
-      const rh = rows.filter((c) => c.chain === "rh" && c.address && c.address.startsWith("0x")).map((c) => c.address);
-      async function hit(chain, addrs) {
-        if (!addrs.length) return [];
-        const url = "https://api.dexscreener.com/tokens/v1/" + chain + "/" + addrs.slice(0, 30).join(",");
-        const r = await fetch(url);
-        if (!r.ok) return [];
-        const data = await r.json();
-        return Array.isArray(data) ? data : (data.pairs || []);
-      }
-      try {
-        const pairs = [].concat(await hit("solana", sol), await hit("robinhood", rh));
-        const by = {};
-        pairs.forEach((pair) => {
-          const base = (pair.baseToken && pair.baseToken.address) || "";
-          if (!base) return;
-          const key = base.toLowerCase();
-          const mc = Number(pair.marketCap || pair.fdv || 0);
-          const prev = by[key];
-          if (!prev || mc > prev.mc) {
-            by[key] = {
-              mc: mc,
-              price: pair.priceUsd,
-              chg: pair.priceChange && pair.priceChange.h24,
-              pair: pair.pairAddress
-            };
-          }
-        });
-        let changed = false;
-        coins.forEach((c) => {
-          const d = by[String(c.address || "").toLowerCase()];
-          if (!d) return;
-          if (d.mc) { c.mcap = d.mc; c.vol = money(d.mc); changed = true; }
-          if (d.price) c.priceUsd = d.price;
-          if (d.chg != null && d.chg !== "") c.chg24 = Number(d.chg);
-          if (d.pair) c.pair = d.pair;
-        });
-        if (changed) renderBoard(false);
-      } catch (e) {}
     }
 
     let liveTimer = null;
@@ -1762,7 +1758,7 @@
         try { logoB64 = await compressLogo(file); } catch (e) {}
       }
       try {
-        const r = await fetch("https://api.dexscreener.com/latest/dex/tokens/" + encodeURIComponent(addr));
+        const r = await fetch(DL_API + "/lookup?addr=" + encodeURIComponent(addr));
         const j = await r.json();
         const pair = (j.pairs||[])[0];
         const c = {
@@ -1782,8 +1778,8 @@
           telegram: (($("subTg")&&$("subTg").value)||"").trim(),
           website: (($("subWeb")&&$("subWeb").value)||"").trim(),
           listed: true,
-          link: pair && pair.url ? pair.url : ("https://dexscreener.com/"+(ch==="rh"?"robinhood":"solana")+"/"+addr),
-          chart: pair && pair.url ? pair.url : ""
+          link: ch==="rh" ? ("https://www.ponsfamily.com/token/"+addr) : ("https://pump.fun/coin/"+addr),
+          chart: ""
         };
         const arr = listed().filter((x)=>x.id!==c.id);
         arr.unshift(c);
@@ -1816,13 +1812,13 @@
       await Promise.all(rows.slice(0, 12).map(async (c) => {
         if (!c.address) return;
         try {
-          const r = await fetch("https://api.dexscreener.com/latest/dex/tokens/" + encodeURIComponent(c.address));
+          const r = await fetch(DL_API + "/lookup?addr=" + encodeURIComponent(c.address));
           const j = await r.json();
           const pair = (j.pairs || [])[0];
           if (!pair) return;
           c.mcap = Number(pair.marketCap || pair.fdv || 0);
           c.vol = c.mcap ? "$" + Math.round(c.mcap).toLocaleString() : "—";
-          c.chart = pair.url || c.chart;
+          if (pair.priceUsd) c.priceUsd = Number(pair.priceUsd);
         } catch (e) {}
       }));
       coins = uniqCoins(rows.concat(coins));
@@ -1843,10 +1839,10 @@
     async function lookupCa(q) {
       toast("Looking up…");
       try {
-        const r = await fetch("https://api.dexscreener.com/latest/dex/tokens/" + encodeURIComponent(q));
+        const r = await fetch(DL_API + "/lookup?addr=" + encodeURIComponent(q));
         const j = await r.json();
         const pair = (j.pairs||[])[0];
-        if (!pair) { toast("No pair on DexScreener"); return; }
+        if (!pair) { toast("Not in the DualLaunch index yet"); return; }
         const chain = String(pair.chainId||"").toLowerCase().includes("robin") ? "rh" : "sol";
         const addr = (pair.baseToken||{}).address || q;
         const c = {
@@ -1955,10 +1951,7 @@
       const pad = (chain==="rh"||(on&&on.chain==="rh"))
         ? ("https://www.ponsfamily.com/")
         : ("https://pump.fun/coin/"+encodeURIComponent(on&&on.address||raw));
-      const dex = (chain==="rh"||(on&&on.chain==="rh"))
-        ? ("https://dexscreener.com/robinhood/"+encodeURIComponent(on&&on.address||raw))
-        : ("https://dexscreener.com/solana/"+encodeURIComponent(on&&on.address||raw));
-      window.open(pad,"_blank"); window.open(dex,"_blank");
+      window.open(pad,"_blank");
     }
     function detectChain(addr){
       const a=String(addr||"").trim();
@@ -1990,9 +1983,8 @@
         ? ("https://www.ponsfamily.com/token/" + encodeURIComponent(on&&on.address||raw))
         : ("https://pump.fun/coin/" + encodeURIComponent(on&&on.address||raw));
       const dex = (chain==="rh"||(on&&on.chain==="rh"))
-        ? ("https://dexscreener.com/robinhood/" + encodeURIComponent(on&&on.address||raw))
-        : ("https://dexscreener.com/solana/" + encodeURIComponent(on&&on.address||raw));
-      const bird = "";
+        ? ("https://robinhoodchain.blockscout.com/token/" + encodeURIComponent(on&&on.address||raw))
+        : ("https://solscan.io/token/" + encodeURIComponent(on&&on.address||raw));
       const share = location.origin + "/?coin=" + encodeURIComponent(on ? on.id : ((chain||"sol")+"-"+raw.toLowerCase()));
       box.innerHTML = `
         <p class="tick">${esc(chain==="rh"?"Robinhood / PONS":chain==="sol"?"Solana / pump.fun":"Unknown format")} ${on?("· on board: "+esc(on.symbol)): "· not on this feed yet"}</p>
@@ -2000,8 +1992,7 @@
         <div class="split" style="margin-top:10px">
           <button class="btn btn-ghost" type="button" onclick="copyCa('${esc(raw)}')">Copy CA</button>
           <a class="btn btn-lime" target="_blank" rel="noopener" href="${esc(pad)}">Open pad</a>
-          <a class="btn btn-ghost" target="_blank" rel="noopener" href="${esc(dex)}">DexScreener</a>
-          ${bird?`<a class="btn btn-ghost" target="_blank" rel="noopener" href="${esc(bird)}">Birdeye</a>`:""}
+          <a class="btn btn-ghost" target="_blank" rel="noopener" href="${esc(dex)}">Explorer</a>
           ${on?`<button class="btn btn-ghost" type="button" onclick="togglePin('${esc(on.id)}')">Watchlist</button>`:""}
         </div>
         <p class="tick" style="margin-top:10px">Share on X: <a href="${esc(share)}" style="color:var(--lime)">${esc(share)}</a></p>
