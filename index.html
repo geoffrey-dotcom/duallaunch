@@ -1166,7 +1166,53 @@
       const c = coins.find(function(x){ return x.id === id; });
       if (c) loadDlCandles(c);
     }
-    function fmtPx(v) { v = Number(v); if (!v) return "0"; return v >= 1 ? v.toFixed(4) : v >= 0.0001 ? v.toPrecision(4) : v.toExponential(3); }
+    function fmtPx(v) { v = Number(v); if (!v) return "0"; return v >= 1 ? v.toFixed(4) : v.toFixed(Math.min(12, Math.max(2, 3 - Math.floor(Math.log10(v)))) ); }
+    let lwLib = null, lwChart = null, lwSeries = null, lwVol = null, lwKey = "";
+    function loadLw() {
+      if (lwLib) return lwLib;
+      lwLib = new Promise(function(ok, bad){
+        const sc = document.createElement("script");
+        sc.src = "https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js";
+        sc.onload = function(){ ok(window.LightweightCharts); };
+        sc.onerror = function(){ lwLib = null; bad(new Error("chart lib")); };
+        document.head.appendChild(sc);
+      });
+      return lwLib;
+    }
+    async function paintLw(rows, key) {
+      const box = $("dlLw");
+      if (!box) return false;
+      const LW = await loadLw();
+      if (!lwChart || !document.body.contains(lwChart.__box)) {
+        if (lwChart) { try { lwChart.remove(); } catch (e) {} }
+        box.innerHTML = "";
+        lwChart = LW.createChart(box, {
+          layout: { background: { color: "transparent" }, textColor: "#8b8c9a", fontFamily: "IBM Plex Mono, monospace" },
+          grid: { vertLines: { color: "#1a1a26" }, horzLines: { color: "#1a1a26" } },
+          crosshair: { mode: LW.CrosshairMode.Normal },
+          rightPriceScale: { borderVisible: false },
+          timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false },
+          autoSize: true,
+          localization: { locale: "en-US" }
+        });
+        lwChart.__box = box;
+        lwSeries = lwChart.addCandlestickSeries({
+          upColor: "#b8ff3a", downColor: "#ff4d6d", wickUpColor: "#b8ff3a", wickDownColor: "#ff4d6d", borderVisible: false,
+          priceFormat: { type: "custom", minMove: 1e-10, formatter: function(p){ return "$" + fmtPx(p); } }
+        });
+        lwVol = lwChart.addHistogramSeries({ priceScaleId: "vol", priceFormat: { type: "volume" }, lastValueVisible: false, priceLineVisible: false });
+        lwChart.priceScale("vol").applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
+        lwKey = "";
+      }
+      const seen = {};
+      const data = rows.filter(function(r){ return Number(r.c) > 0; }).map(function(r){ return { time: Math.floor(Number(r.t)/1000), o:+r.o, h:+r.h, l:+r.l, c:+r.c, v:+(r.v||0) }; })
+        .filter(function(r){ if (seen[r.time]) return false; seen[r.time] = 1; return true; }).sort(function(a,b){ return a.time-b.time; });
+      lwSeries.setData(data.map(function(r){ return { time:r.time, open:r.o, high:r.h, low:r.l, close:r.c }; }));
+      lwVol.setData(data.map(function(r){ return { time:r.time, value:r.v, color: r.c >= r.o ? "rgba(184,255,58,.35)" : "rgba(255,77,109,.35)" }; }));
+      if (lwKey !== key) { lwChart.timeScale().fitContent(); lwKey = key; }
+      box.style.display = "block";
+      return true;
+    }
     async function loadDlCandles(c) {
       const note = $("chartNote");
       const canvas = $("dlCandles");
@@ -1177,9 +1223,11 @@
         const rows = j.candles || [];
         const iframe = $("dexChart");
         if (rows.length >= 1) {
-          canvas.style.display = "block";
           if (iframe) { iframe.style.display = "none"; }
-          paintCandles(canvas, rows);
+          let lwOk = false;
+          try { lwOk = await paintLw(rows, c.id + (window.__dlTf||"1m")); } catch (e) {}
+          if (lwOk) canvas.style.display = "none";
+          else { canvas.style.display = "block"; paintCandles(canvas, rows); }
           if (note) note.textContent = rows.length + " candles · " + (j.source||"pool") + (c.mcap ? " · MC " + money(c.mcap) : "");
         } else {
           if (canvas) canvas.style.display = "block";
@@ -1213,8 +1261,9 @@
               <div class="stat"><b>Market</b>${esc(c.mcap ? money(c.mcap) : (c.vol || "—"))}</div>
               <div class="stat"><b>Price</b>${c.priceUsd ? ("$"+Number(c.priceUsd).toPrecision(4)) : "—"}</div>
             </div>
-            <div class="split" id="tfBar" style="margin-bottom:8px;gap:6px">${["1m","5m","1h"].map(t=>`<button type="button" class="btn ${t===(window.__dlTf||"1m")?"btn-lime":"btn-ghost"}" data-tf="${t}" onclick="setTf('${t}','${esc(c.id)}')">${t==="1m"?"1 min":t==="5m"?"5 min":"1 hour"}</button>`).join("")}</div>
+            <div id="tfBar" style="display:flex;margin:12px 0 8px;gap:6px">${["1m","5m","1h"].map(t=>`<button type="button" style="padding:6px 14px;flex:0 0 auto;width:auto" class="btn ${t===(window.__dlTf||"1m")?"btn-lime":"btn-ghost"}" data-tf="${t}" onclick="setTf('${t}','${esc(c.id)}')">${t==="1m"?"1 min":t==="5m"?"5 min":"1 hour"}</button>`).join("")}</div>
             <div class="chart-wrap">
+              <div id="dlLw" style="height:420px;width:100%;display:none"></div>
               <canvas id="dlCandles" class="chart-frame" width="900" height="360" style="display:none"></canvas>
               <p class="tick" id="chartNote" style="padding:12px">Loading chart…</p>
               <iframe class="chart-frame" id="dexChart" title="Chart" src="about:blank" style="height:0;min-height:0;display:none"></iframe>
@@ -1245,7 +1294,7 @@
       setTimeout(() => {
         const n = document.getElementById("chartNote");
         const cv = document.getElementById("dlCandles");
-        if (n && document.getElementById("view-coin").classList.contains("on") && !(cv && cv.style.display === "block")) n.style.display = "block";
+        if (n && document.getElementById("view-coin").classList.contains("on") && !((cv && cv.style.display === "block") || ($("dlLw") && $("dlLw").style.display === "block"))) n.style.display = "block";
       }, 8000);
       enrichCoin(c);
       loadDlCandles(c);
