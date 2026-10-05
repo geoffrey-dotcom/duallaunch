@@ -1,12 +1,11 @@
-const UPSTREAM = "https://duallaunch-fix-buddy.lovable.app/api/public/candles";
-
-module.exports = async function handler(req, res) {
+module.exports = async (req, res) => {
+  const q = req.url.split("?")[1] || "";
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Cache-Control", "s-maxage=8, stale-while-revalidate=20");
-
-  const q = req.query || {};
-  const id = q.id || "";
-  const chain = q.chain || "";
-  const addr = q.token || q.addr || "";
-  let tokenId = id.includes("-") ? id : chain && addr ? `${chain}-${addr}` : "";
-  if (tokenId.startsWith("rh-")) to
+  res.setHeader("Content-Type", "application/json");
+  try {
+    const r = await fetch("https://duallaunch-fix-buddy.lovable.app/api/public/candles?" + q);
+    res.status(200).send(await r.text());
+  } catch (e) {
+    res.status(200).send('{"ok":false,"candles":[],"trades":[]}');
+  }
+};
