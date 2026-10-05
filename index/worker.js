@@ -1,434 +1,163 @@
 /**
- * DualLaunch index worker.
- * Chain is the source. No DexScreener, no Birdeye.
+ * DualLaunch index worker, build 9.
+ * Copies the pump.fun and PONS coin indexes into our Neon table.
+ * No DexScreener. No Birdeye.
  *
- * Env, set on the host, never in git:
- *   DATABASE_URL   Neon connection string
- *   SOLANA_RPC     https://mainnet.helius-rpc.com/?api-key=...
- *   SOLANA_WSS     wss://mainnet.helius-rpc.com/?api-key=...
- *   RH_RPC         https://rpc.mainnet.chain.robinhood.com
+ * Their displayed market cap is usd_market_cap / marketCapUsd.
+ * Recomputing it from raw reserves was ~20x off, which is why the board disagreed.
  *
- * Run: npm install && npm start
+ * Env: DATABASE_URL required. SOLANA_RPC optional, not used by this build.
+ * Run from the index/ folder: node worker.js
  */
-const { Connection, PublicKey } = require("@solana/web3.js");
 const { Pool } = require("pg");
 
-const PUMP = new PublicKey("6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P");
-const PONS_V2 = "0x7ed598bcef8bd9edd8c97a195c6d13f40801ec7e";
-const TOKEN_LAUNCHED = "0x8d4aad4953d0ca700d468f3753aa14432d1b35b43ec6409f051fb6aa43a89607";
-const INITIAL_REAL_TOKEN = 793_100_000_000_000n;
-const SOL_USD_ID = "0xef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d";
-const ETH_USD_ID = "0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace";
-
-const RPC = process.env.SOLANA_RPC;
-const WSS = process.env.SOLANA_WSS || "";
-const RH = process.env.RH_RPC || "https://rpc.mainnet.chain.robinhood.com";
 const DB = process.env.DATABASE_URL;
-
-if (!RPC || !DB) {
-  console.error("SOLANA_RPC and DATABASE_URL are required");
+if (!DB) {
+  console.error("DATABASE_URL is required");
   process.exit(1);
 }
 
-const connection = new Connection(RPC, { wsEndpoint: WSS || undefined, commitment: "confirmed" });
-const pool = new Pool({ connectionString: DB, ssl: { rejectUnauthorized: false } });
-
-const quotes = { sol: 0, eth: 0, at: 0 };
+const pool = new Pool({ connectionString: DB, ssl: { rejectUnauthorized: false }, max: 2 });
+const INITIAL_REAL_TOKEN = 793100000000000;
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-async function quoteUsd() {
-  if (Date.now() - quotes.at < 30000 && quotes.sol) return quotes;
-  try {
-    const url = "https://hermes.pyth.network/v2/updates/price/latest?ids[]=" + SOL_USD_ID + "&ids[]=" + ETH_USD_ID;
-    const r = await fetch(url);
-    const text = await r.text();
-    if (text.startsWith("{")) {
-      const j = JSON.parse(text);
-      for (const row of j.parsed || []) {
-        const px = Number(row.price.price) * Math.pow(10, Number(row.price.expo));
-        const id = String(row.id || "");
-        if (id.includes(SOL_USD_ID.slice(2))) quotes.sol = px;
-        if (id.includes(ETH_USD_ID.slice(2))) quotes.eth = px;
-      }
-    }
-  } catch (e) {}
-  if (!quotes.sol) {
-    const r = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=solana,ethereum&vs_currencies=usd");
-    const text = await r.text();
-    if (text.startsWith("{")) {
-      const j = JSON.parse(text);
-      if (j.solana) quotes.sol = Number(j.solana.usd);
-      if (j.ethereum) quotes.eth = Number(j.ethereum.usd);
-    }
-  }
-  quotes.at = Date.now();
-  return quotes;
+async function getJson(url) {
+  const r = await fetch(url, {
+    headers: { accept: "application/json", "user-agent": "DualLaunchIndex/9" },
+    signal: AbortSignal.timeout(12000)
+  });
+  if (!r.ok) throw new Error(r.status + " " + url);
+  return r.json();
 }
 
-const META = new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
-
-async function readMeta(mint) {
-  try {
-    const [pda] = PublicKey.findProgramAddressSync(
-      [Buffer.from("metadata"), META.toBuffer(), mint.toBuffer()],
-      META
-    );
-    const info = await connection.getAccountInfo(pda);
-    if (!info) return null;
-    const buf = Buffer.from(info.data);
-    let o = 65;
-    const readStr = () => {
-      if (o + 4 > buf.length) return "";
-      const len = buf.readUInt32LE(o);
-      o += 4;
-      const s = buf.slice(o, o + len).toString("utf8").replace(/\0/g, "").trim();
-      o += len;
-      return s;
-    };
-    return { name: readStr(), symbol: readStr(), uri: readStr() };
-  } catch (e) {
-    return null;
-  }
+function ipfs(u) {
+  const s = String(u || "");
+  if (s.startsWith("ipfs://")) return "https://ipfs.io/ipfs/" + s.slice(7);
+  return s;
 }
 
-function curvePda(mint) {
-  return PublicKey.findProgramAddressSync([Buffer.from("bonding-curve"), mint.toBuffer()], PUMP)[0];
+function pumpCurve(t) {
+  if (t.complete) return 100;
+  const real = Number(t.real_token_reserves || 0);
+  if (!real) return 0;
+  return Math.max(0, Math.min(100, (1 - real / INITIAL_REAL_TOKEN) * 100));
 }
 
-function decodeCurve(buf) {
-  if (!buf || buf.length < 49) return null;
-  let o = 8;
-  const u64 = () => {
-    const v = buf.readBigUInt64LE(o);
-    o += 8;
-    return v;
-  };
-  const virtualToken = u64();
-  const virtualSol = u64();
-  const realToken = u64();
-  const realSol = u64();
-  const supply = u64();
-  const complete = buf[o] === 1;
-  return { virtualToken, virtualSol, realToken, realSol, supply, complete };
-}
-
-async function readCurve(mint) {
-  const pda = curvePda(mint);
-  const info = await connection.getAccountInfo(pda);
-  if (!info) return null;
-  const c = decodeCurve(Buffer.from(info.data));
-  if (!c) return null;
-  const priceSol = (Number(c.virtualSol) / 1e9) / (Number(c.virtualToken) / 1e6);
-  const left = Number(c.realToken) / Number(INITIAL_REAL_TOKEN);
-  const curvePct = c.complete ? 100 : Math.max(0, Math.min(100, (1 - left) * 100));
-  const supplyUi = Number(c.supply) / 1e6;
-  return { pda: pda.toBase58(), priceSol, curvePct, supplyUi, complete: c.complete, realSol: c.realSol };
-}
-
-async function cursor(name) {
-  const q = await pool.query("select value from cursors where name = $1", [name]);
-  return q.rows[0] ? q.rows[0].value : "";
-}
-
-async function setCursor(name, value) {
+async function upsert(row) {
   await pool.query(
-    "insert into cursors (name, value, updated_at) values ($1, $2, now()) on conflict (name) do update set value = $2, updated_at = now()",
-    [name, value]
-  );
-}
-
-async function upsertToken(row) {
-  await pool.query(
-    `insert into tokens (id, chain, address, name, symbol, logo, curve, created_at, graduated, curve_pct, price_usd, mcap_usd, last_trade_at, updated_at)
-     values ($1,$2,$3,$4,$5,$6,$7, coalesce($8::timestamptz, now()), $9, $10, $11, $12, now(), now())
+    `insert into tokens (id, chain, address, name, symbol, logo, description, twitter, telegram, website,
+        created_at, graduated, curve_pct, price_usd, mcap_usd, last_trade_at, updated_at)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, coalesce($11::timestamptz, now()), $12, $13, $14, $15, coalesce($16::timestamptz, now()), now())
      on conflict (id) do update set
+       name = coalesce(nullif(excluded.name, ''), tokens.name),
+       symbol = coalesce(nullif(excluded.symbol, ''), tokens.symbol),
+       logo = coalesce(nullif(excluded.logo, ''), tokens.logo),
+       description = coalesce(nullif(excluded.description, ''), tokens.description),
+       twitter = coalesce(nullif(excluded.twitter, ''), tokens.twitter),
+       telegram = coalesce(nullif(excluded.telegram, ''), tokens.telegram),
+       website = coalesce(nullif(excluded.website, ''), tokens.website),
        graduated = excluded.graduated,
        curve_pct = excluded.curve_pct,
        price_usd = excluded.price_usd,
        mcap_usd = excluded.mcap_usd,
-       curve = coalesce(excluded.curve, tokens.curve),
-       name = coalesce(nullif(excluded.name, ''), nullif(tokens.name, '')),
-       symbol = coalesce(nullif(excluded.symbol, ''), nullif(tokens.symbol, '')),
-       logo = coalesce(nullif(excluded.logo, ''), tokens.logo),
-       last_trade_at = now(),
+       last_trade_at = coalesce(excluded.last_trade_at, tokens.last_trade_at),
        updated_at = now()`,
-    [row.id, row.chain, row.address, row.name || null, row.symbol || null, row.logo || null, row.curve || null, row.createdAt || null, row.graduated, row.curvePct, row.priceUsd, row.mcapUsd]
+    [
+      row.id, row.chain, row.address, row.name || null, row.symbol || null, row.logo || null,
+      row.desc || null, row.twitter || null, row.telegram || null, row.website || null,
+      row.createdAt || null, row.graduated, row.curvePct, row.priceUsd, row.mcapUsd, row.lastTrade || null
+    ]
   );
 }
 
-async function addTrade(row) {
-  await pool.query(
-    `insert into trades (token_id, chain, tx, log_index, side, quote_amount, token_amount, price_usd, usd, block_time)
-     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-     on conflict (chain, tx, log_index) do nothing`,
-    [row.tokenId, row.chain, row.tx, row.logIndex, row.side, row.quote, row.tokens, row.priceUsd, row.usd, row.at]
-  );
-  const bucket = new Date(Math.floor(new Date(row.at).getTime() / 60000) * 60000).toISOString();
-  await pool.query(
-    `insert into candles (token_id, tf, ts, open, high, low, close, volume_usd)
-     values ($1, '1m', $2, $3, $3, $3, $3, $4)
-     on conflict (token_id, tf, ts) do update set
-       high = greatest(candles.high, excluded.high),
-       low = least(candles.low, excluded.low),
-       close = excluded.close,
-       volume_usd = candles.volume_usd + excluded.volume_usd`,
-    [row.tokenId, bucket, row.priceUsd || 0, row.usd || 0]
-  );
-}
-
-function asBase58(k) {
-  if (!k) return "";
-  if (typeof k === "string") return k;
-  if (typeof k.toBase58 === "function") return k.toBase58();
-  if (k.pubkey && typeof k.pubkey.toBase58 === "function") return k.pubkey.toBase58();
-  return "";
-}
-
-function txKeys(tx) {
-  const msg = tx.transaction.message;
-  const loaded = tx.meta && tx.meta.loadedAddresses;
-  if (typeof msg.getAccountKeys === "function") {
-    const accountKeys = msg.getAccountKeys({ accountKeysFromLookups: loaded });
-    const out = [];
-    for (let i = 0; i < accountKeys.length; i++) out.push(asBase58(accountKeys.get(i)));
-    return out.filter(Boolean);
-  }
-  return (msg.accountKeys || []).map(asBase58).filter(Boolean);
-}
-
-function findPumpMint(tx) {
-  const keys = txKeys(tx);
-  const set = new Set(keys);
-  for (const k of keys) {
-    try {
-      const pda = curvePda(new PublicKey(k)).toBase58();
-      if (set.has(pda)) return k;
-    } catch (e) {}
-  }
-  return "";
-}
-
-async function handlePumpSig(sig) {
-  const tx = await connection.getTransaction(sig, { maxSupportedTransactionVersion: 1 });
-  if (!tx || !tx.meta) return;
-  const logs = tx.meta.logMessages || [];
-  const kind = logs.some((l) => /Instruction: Create/.test(l))
-    ? "create"
-    : logs.some((l) => /Instruction: Buy/.test(l))
-      ? "buy"
-      : logs.some((l) => /Instruction: Sell/.test(l))
-        ? "sell"
-        : "";
-  if (!kind) return;
-  const mintKey = findPumpMint(tx);
-  if (!mintKey) return;
-  let mint;
-  try { mint = new PublicKey(mintKey); } catch { return; }
-  const curve = await readCurve(mint);
-  if (!curve) return;
-  const q = await quoteUsd();
-  const priceUsd = curve.priceSol * q.sol;
-  const mcapUsd = priceUsd * curve.supplyUi;
-  const id = "sol-" + mintKey;
-  const at = new Date((tx.blockTime || Math.floor(Date.now() / 1000)) * 1000).toISOString();
-  const meta = await readMeta(mint);
-  const logo = meta && meta.uri ? await resolveLogo(meta.uri) : "";
-  await upsertToken({
-    id,
-    chain: "sol",
-    address: mintKey,
-    name: meta && meta.name,
-    symbol: meta && meta.symbol,
-    logo,
-    curve: curve.pda,
-    createdAt: kind === "create" ? at : null,
-    graduated: curve.complete,
-    curvePct: curve.curvePct,
-    priceUsd,
-    mcapUsd
-  });
-  if (kind !== "create") {
-    await addTrade({
-      tokenId: id,
-      chain: "sol",
-      tx: sig,
-      logIndex: 0,
-      side: kind,
-      quote: Number(curve.realSol) / 1e9,
-      tokens: null,
-      priceUsd,
-      usd: null,
-      at
-    });
-  }
-}
-
-async function pumpInfo(mintKey) {
-  try {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 4000);
-    const r = await fetch("https://frontend-api-v3.pump.fun/coins/" + mintKey, { signal: ctrl.signal });
-    clearTimeout(t);
-    if (!r.ok) return null;
-    const j = await r.json();
-    return {
-      name: j.name || "",
-      symbol: j.symbol || "",
-      logo: j.image_uri || "",
-      mcapUsd: Number(j.usd_market_cap || 0)
-    };
-  } catch (e) {
-    return null;
-  }
-}
-
-async function pollPump() {
-  const seen = await cursor("sol-sig");
-  const sigs = await connection.getSignaturesForAddress(PUMP, { limit: 80 });
-  const fresh = [];
-  for (const s of sigs) {
-    if (s.signature === seen) break;
-    fresh.push(s.signature);
-  }
-  fresh.reverse();
-  for (const sig of fresh) {
-    try { await handlePumpSig(sig); } catch (e) { console.error("pump", sig, e.message); }
-    await setCursor("sol-sig", sig);
-  }
-  if (fresh.length) console.log("pump", fresh.length, fresh.length === sigs.length ? "behind" : "ok");
-}
-
-async function backfillNames() {
-  const q = await pool.query(
-    "select id, chain, address from tokens where chain = 'sol' and (name is null or name = '' or name = 'Unnamed') order by updated_at desc limit 12"
-  );
+async function syncPump() {
+  const pages = [0, 50, 100];
+  const seen = new Set();
   let n = 0;
-  for (const row of q.rows) {
-    try {
-      const mint = new PublicKey(row.address);
-      const meta = await readMeta(mint);
-      let name = meta && meta.name;
-      let symbol = meta && meta.symbol;
-      let logo = meta && meta.uri ? await resolveLogo(meta.uri) : "";
-      if (!name) {
-        const info = await pumpInfo(row.address);
-        if (info) { name = info.name; symbol = info.symbol || symbol; logo = info.logo || logo; }
-      }
-      if (!name) continue;
-      await pool.query(
-        "update tokens set name = $2, symbol = coalesce(nullif($3, ''), symbol), logo = coalesce(nullif($4, ''), logo), updated_at = now() where id = $1",
-        [row.id, name, symbol || "", logo || ""]
-      );
+  for (const offset of pages) {
+    const rows = await getJson(
+      "https://frontend-api-v3.pump.fun/coins?offset=" + offset + "&limit=50&sort=last_trade_timestamp&order=DESC&includeNsfw=false"
+    );
+    const list = Array.isArray(rows) ? rows : [];
+    for (const t of list) {
+      const mint = t.mint;
+      if (!mint || seen.has(mint)) continue;
+      seen.add(mint);
+      const mcap = Number(t.usd_market_cap || 0);
+      const created = t.created_timestamp ? new Date(Number(t.created_timestamp)).toISOString() : null;
+      const last = t.last_trade_timestamp ? new Date(Number(t.last_trade_timestamp)).toISOString() : created;
+      await upsert({
+        id: "sol-" + mint,
+        chain: "sol",
+        address: mint,
+        name: t.name || "",
+        symbol: t.symbol || "",
+        logo: ipfs(t.image_uri || ""),
+        desc: t.description || "",
+        twitter: t.twitter || "",
+        telegram: t.telegram || "",
+        website: t.website || "",
+        createdAt: created,
+        lastTrade: last,
+        graduated: !!t.complete,
+        curvePct: pumpCurve(t),
+        priceUsd: mcap ? mcap / 1e9 : 0,
+        mcapUsd: mcap
+      });
       n++;
-    } catch (e) {}
+    }
   }
-  if (n) console.log("names", n);
+  console.log("pump saved", n);
 }
 
-async function rh(method, params) {
-  const r = await fetch(RH, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params })
-  });
-  const j = await r.json();
-  if (j.error) throw new Error(j.error.message || "rh rpc");
-  return j.result;
-}
-
-
-async function resolveLogo(uri) {
-  const raw = String(uri || "").trim();
-  if (!raw || raw.startsWith("data:image")) return raw;
-  const url = raw.startsWith("ipfs://")
-    ? "https://ipfs.io/ipfs/" + raw.slice(7)
-    : raw.startsWith("ar://")
-      ? "https://arweave.net/" + raw.slice(5)
-      : raw;
-  if (!/^https?:\/\//i.test(url)) return "";
-  try {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 4000);
-    const r = await fetch(url, { signal: ctrl.signal });
-    clearTimeout(t);
-    const ctype = String(r.headers.get("content-type") || "");
-    if (ctype.includes("image")) return url;
-    const text = await r.text();
-    if (!text.trim().startsWith("{")) return "";
-    const j = JSON.parse(text);
-    const img = String(j.image || j.logo || "");
-    if (img.startsWith("ipfs://")) return "https://ipfs.io/ipfs/" + img.slice(7);
-    if (img.startsWith("ar://")) return "https://arweave.net/" + img.slice(5);
-    return img;
-  } catch (e) {
-    return "";
-  }
-}
-
-function decodeAbiString(hex) {
-  const h = String(hex || "").replace(/^0x/, "");
-  if (h.length < 128) return "";
-  const len = parseInt(h.slice(64, 128), 16);
-  if (!len || len > 64) return "";
-  return Buffer.from(h.slice(128, 128 + len * 2), "hex").toString("utf8").replace(/\0/g, "").trim();
-}
-
-async function erc20String(token, selector) {
-  try {
-    const data = await rh("eth_call", [{ to: token, data: selector }, "latest"]);
-    return decodeAbiString(data);
-  } catch (e) {
-    return "";
-  }
-}
-
-async function pollPons() {
-  const latest = parseInt(await rh("eth_blockNumber", []), 16);
-  const from = Number(await cursor("rh-block")) || Math.max(0, latest - 20);
-  if (from >= latest) return;
-  const to = Math.min(latest, from + 20);
-  const logs = await rh("eth_getLogs", [{
-    address: PONS_V2,
-    fromBlock: "0x" + from.toString(16),
-    toBlock: "0x" + to.toString(16),
-    topics: [TOKEN_LAUNCHED]
-  }]);
-  for (const log of logs) {
-    const token = "0x" + String(log.topics[1] || "").slice(-40);
-    if (token.length !== 42) continue;
-    const name = await erc20String(token, "0x06fdde03");
-    const symbol = await erc20String(token, "0x95d89b41");
-    await upsertToken({
-      id: "rh-" + token,
+async function syncPons() {
+  const j = await getJson("https://www.ponsfamily.com/api/pons-launches?explore=1&sort=newest&age=all&page=1&includeGraduated=true");
+  const items = []
+    .concat((j.active && j.active.items) || [])
+    .concat((j.graduated && j.graduated.items) || []);
+  let n = 0;
+  for (const t of items) {
+    const addr = String(t.token || "");
+    if (!addr.startsWith("0x")) continue;
+    const mcap = Number(t.marketCapUsd || 0);
+    const curve = t.graduated ? 100 : Math.max(0, Math.min(100, Number(t.graduationProgressPct || 0)));
+    await upsert({
+      id: "rh-" + addr.toLowerCase(),
       chain: "rh",
-      address: token,
-      name,
-      symbol,
-      graduated: false,
-      curvePct: 0,
-      priceUsd: 0,
-      mcapUsd: 0
+      address: addr,
+      name: t.name || "",
+      symbol: String(t.symbol || "").replace(/^\$/, ""),
+      logo: ipfs(t.logo || ""),
+      desc: t.description || "",
+      twitter: t.twitter || "",
+      telegram: t.telegram || "",
+      website: t.website || "",
+      createdAt: t.launchedAt || null,
+      lastTrade: t.latestBuyAt || t.launchedAt || null,
+      graduated: !!t.graduated,
+      curvePct: curve,
+      priceUsd: Number(t.priceUsd || 0),
+      mcapUsd: mcap
     });
+    n++;
   }
-  await setCursor("rh-block", String(to));
-  if (logs.length) console.log("pons", logs.length);
+  console.log("pons saved", n);
 }
 
 async function tick() {
-  await pollPump();
-  try { await pollPons(); } catch (e) { console.error("pons", e.message); }
-  try { await backfillNames(); } catch (e) { console.error("names", e.message); }
+  try { await syncPump(); } catch (e) { console.error("pump", e.message); }
+  try { await syncPons(); } catch (e) { console.error("pons", e.message); }
 }
 
 async function main() {
   await pool.query("select 1");
-  console.log("index worker up build 8");
+  console.log("index worker up build 9");
   for (;;) {
-    try { await tick(); } catch (e) { console.error("tick", e.message); }
-    await sleep(8000);
+    await tick();
+    await sleep(20000);
   }
 }
 
