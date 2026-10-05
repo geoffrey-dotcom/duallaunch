@@ -68,7 +68,31 @@ async function quoteUsd() {
   return quotes;
 }
 
-function curvePda(mint) {
+const META = new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
+
+async function readMeta(mint) {
+  try {
+    const [pda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("metadata"), META.toBuffer(), mint.toBuffer()],
+      META
+    );
+    const info = await connection.getAccountInfo(pda);
+    if (!info) return null;
+    const buf = Buffer.from(info.data);
+    let o = 65;
+    const readStr = () => {
+      if (o + 4 > buf.length) return "";
+      const len = buf.readUInt32LE(o);
+      o += 4;
+      const s = buf.slice(o, o + len).toString("utf8").replace(/\0/g, "").trim();
+      o += len;
+      return s;
+    };
+    return { name: readStr(), symbol: readStr(), uri: readStr() };
+  } catch (e) {
+    return null;
+  }
+}
   return PublicKey.findProgramAddressSync([Buffer.from("bonding-curve"), mint.toBuffer()], PUMP)[0];
 }
 
@@ -95,7 +119,7 @@ async function readCurve(mint) {
   if (!info) return null;
   const c = decodeCurve(Buffer.from(info.data));
   if (!c) return null;
-  const priceSol = Number(c.virtualSol) / Number(c.virtualToken);
+  const priceSol = (Number(c.virtualSol) / 1e9) / (Number(c.virtualToken) / 1e6);
   const left = Number(c.realToken) / Number(INITIAL_REAL_TOKEN);
   const curvePct = c.complete ? 100 : Math.max(0, Math.min(100, (1 - left) * 100));
   const supplyUi = Number(c.supply) / 1e6;
@@ -116,19 +140,20 @@ async function setCursor(name, value) {
 
 async function upsertToken(row) {
   await pool.query(
-    `insert into tokens (id, chain, address, name, symbol, curve, created_at, graduated, curve_pct, price_usd, mcap_usd, last_trade_at, updated_at)
-     values ($1,$2,$3,$4,$5,$6, coalesce($7::timestamptz, now()), $8, $9, $10, $11, now(), now())
+    `insert into tokens (id, chain, address, name, symbol, logo, curve, created_at, graduated, curve_pct, price_usd, mcap_usd, last_trade_at, updated_at)
+     values ($1,$2,$3,$4,$5,$6,$7, coalesce($8::timestamptz, now()), $9, $10, $11, $12, now(), now())
      on conflict (id) do update set
        graduated = excluded.graduated,
        curve_pct = excluded.curve_pct,
        price_usd = excluded.price_usd,
        mcap_usd = excluded.mcap_usd,
        curve = coalesce(excluded.curve, tokens.curve),
-       name = coalesce(tokens.name, excluded.name),
-       symbol = coalesce(tokens.symbol, excluded.symbol),
+       name = coalesce(nullif(tokens.name, ''), nullif(excluded.name, ''), tokens.name),
+       symbol = coalesce(nullif(tokens.symbol, ''), nullif(excluded.symbol, ''), tokens.symbol),
+       logo = coalesce(tokens.logo, excluded.logo),
        last_trade_at = now(),
        updated_at = now()`,
-    [row.id, row.chain, row.address, row.name || null, row.symbol || null, row.curve || null, row.createdAt || null, row.graduated, row.curvePct, row.priceUsd, row.mcapUsd]
+    [row.id, row.chain, row.address, row.name || null, row.symbol || null, row.logo || null, row.curve || null, row.createdAt || null, row.graduated, row.curvePct, row.priceUsd, row.mcapUsd]
   );
 }
 
@@ -207,10 +232,14 @@ async function handlePumpSig(sig) {
   const mcapUsd = priceUsd * curve.supplyUi;
   const id = "sol-" + mintKey;
   const at = new Date((tx.blockTime || Math.floor(Date.now() / 1000)) * 1000).toISOString();
+  const meta = await readMeta(mint);
   await upsertToken({
     id,
     chain: "sol",
     address: mintKey,
+    name: meta && meta.name,
+    symbol: meta && meta.symbol,
+    logo: meta && meta.uri,
     curve: curve.pda,
     createdAt: kind === "create" ? at : null,
     graduated: curve.complete,
@@ -296,7 +325,7 @@ async function tick() {
 
 async function main() {
   await pool.query("select 1");
-  console.log("index worker up build 4");
+  console.log("index worker up build 6");
   for (;;) {
     try { await tick(); } catch (e) { console.error("tick", e.message); }
     await sleep(8000);
