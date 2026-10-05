@@ -513,6 +513,7 @@
 }
 @media(prefers-reduced-motion:reduce) { #view-coin * { transition:none; } }
 </style>
+<style>.dl-lbl{display:block;color:var(--lime,#b8ff3a);text-transform:uppercase;letter-spacing:.08em;font-size:11px}.dl-quote{color:#e8eaed;font-size:15px;line-height:1.5}.dl-quote b{color:#b8ff3a}#rhSlip{background:#1b1d22;color:#e8eaed;border:1px solid #2a2d34;border-radius:10px;padding:8px 10px}#rhGo:disabled{opacity:.5;cursor:not-allowed}</style>
 </head>
 <body>
   <div class="shell">
@@ -525,7 +526,6 @@
     <div class="nav-links">
       <button id="nav-board" class="on" onclick="show('board')">Board <span id="pinCount" class="tick"></span></button>
       <button id="nav-launch" onclick="show('launch')">Launch</button>
-      <button id="nav-wallet" onclick="show('wallet')">Wallet</button>
       <button id="nav-swap" onclick="show('swap')">Swap</button>
       <button id="nav-listed" onclick="show('listed')">Listed</button>
       <button id="nav-submit" onclick="show('submit')">Submit</button>
@@ -561,7 +561,7 @@
         <button class="on" data-f="all" onclick="filterBoard(this,'all')">All</button>
         <button data-f="rh" onclick="filterBoard(this,'rh')">PONS</button>
         <button data-f="sol" onclick="filterBoard(this,'sol')">pump.fun</button>
-        <button data-f="live" onclick="filterBoard(this,'live')">Active / curve</button>
+        <button data-f="live" onclick="filterBoard(this,'live')">Active 1h</button>
         <button data-f="grad" onclick="filterBoard(this,'grad')">Graduated</button>
         <button data-f="soon" onclick="filterBoard(this,'soon')">About to graduate</button>
         <button data-f="m15" onclick="filterBoard(this,'m15')">MC $15k+</button>
@@ -627,31 +627,55 @@
     <section id="view-swap" class="view">
       <p class="kicker">Trade</p>
       <h1>Swap</h1>
-      <p class="lede">Solana swap on DualLaunch. Routing is on-chain via liquidity aggregators. A small integrator fee (0.5%) can apply. Your wallet signs. DualLaunch never holds keys. Ethereum later. PONS tokens still swap on PONS.</p>
+      <p class="lede">Connect your own wallet and swap right here. Your wallet signs every trade. DualLaunch never holds your keys or funds. A 0.5% DualLaunch fee applies.</p>
       <div class="toolbar">
-        <button class="on" id="swapSolBtn" type="button">Solana / Jupiter</button>
-        <button id="swapRhBtn" type="button">Robinhood / PONS</button>
+        <button class="on" id="swapSolBtn" type="button">Solana</button>
+        <button id="swapRhBtn" type="button">Robinhood Chain</button>
       </div>
       <div id="jupBox" class="swap-shell">
-        <div class="split" style="margin-bottom:12px;max-width:640px">
-          <button class="btn btn-ghost" type="button" onclick="connectSolNamed('phantom')">Phantom</button>
-          <button class="btn btn-ghost" type="button" onclick="connectSolNamed('solflare')">Solflare</button>
-          <button class="btn btn-ghost" type="button" onclick="connectSolNamed('backpack')">Backpack</button>
-          <button class="btn btn-ghost" type="button" onclick="connectSolNamed('trust')">Trust</button>
-          <button class="btn btn-lime" type="button" onclick="connectSol()">Any detected</button>
-        </div>
+        <p class="tick" style="margin-bottom:10px">Phantom, Solflare, Trust, Backpack, OKX and more: press Connect inside the swap box.</p>
         <div id="jupiter-plugin"></div>
-        <p class="tick" style="margin-top:10px">If the green button stays on Loading, use the link below. Same wallet, same swap.</p>
-        <a class="btn btn-lime" id="openJupSwap" href="https://jup.ag/swap?referrer=DcjgxryYvUDhQKaDE5REGacdYC9k7eoNB5Nbyezhx9rY" target="_blank" rel="noopener" style="margin-top:10px">Open swap (fee on)</a>
+        <div class="split dl-mobile-only" style="margin-top:12px;max-width:640px">
+          <a class="btn btn-ghost" id="swOpenPhantom" href="#">Open in Phantom</a>
+          <a class="btn btn-ghost" id="swOpenSolflare" href="#">Open in Solflare</a>
+          <a class="btn btn-ghost" id="swOpenTrust" href="#">Open in Trust</a>
+        </div>
       </div>
-      <div id="rhSwap" class="panel" style="max-width:480px;display:none">
-        <p class="tick">Paste a PONS token address, or open a coin on the board and use Open coin.</p>
-        <input id="rhSwapAddr" placeholder="0x…" />
-        <a class="btn btn-lime" id="rhSwapGo" href="https://www.ponsfamily.com/launchpad" target="_blank" rel="noopener" style="margin-top:12px">Open PONS</a>
+      <div id="rhSwap" class="panel dl-swap" style="max-width:520px;display:none">
+        <div id="rhWalletRow">
+          <p class="tick dl-lbl">Wallet</p>
+          <div class="split" id="rhWallets" style="flex-wrap:wrap"></div>
+          <p class="tick" id="rhWalletState" style="margin-top:8px">Not connected</p>
+          <div class="split dl-mobile-only" style="margin-top:8px;flex-wrap:wrap">
+            <a class="btn btn-ghost" id="swOpenMetamask" href="#">Open in MetaMask</a>
+            <a class="btn btn-ghost" id="swOpenTrustEvm" href="#">Open in Trust</a>
+            <a class="btn btn-ghost" id="swOpenCoinbase" href="#">Open in Coinbase Wallet</a>
+          </div>
+        </div>
+        <p class="tick dl-lbl" style="margin-top:16px">Token</p>
+        <input id="rhSwapAddr" placeholder="PONS token address 0x…" />
+        <p class="tick" id="rhTokInfo" style="margin-top:6px"></p>
+        <div class="toolbar" style="margin-top:12px">
+          <button class="on" id="rhSideBuy" type="button">Buy</button>
+          <button id="rhSideSell" type="button">Sell</button>
+        </div>
+        <p class="tick dl-lbl" style="margin-top:12px" id="rhAmtLabel">Amount (ETH)</p>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input id="rhAmt" inputmode="decimal" placeholder="0.0" style="flex:1" />
+          <button class="btn btn-ghost" id="rhMax" type="button">Max</button>
+        </div>
+        <p class="tick" id="rhBal" style="margin-top:6px"></p>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:10px">
+          <span class="tick">Slippage</span>
+          <select id="rhSlip"><option value="3">3%</option><option value="5">5%</option><option value="10" selected>10%</option><option value="20">20%</option></select>
+        </div>
+        <p class="dl-quote" id="rhQuote" style="margin-top:12px">Enter an amount to see the quote.</p>
+        <button class="btn btn-lime" id="rhGo" type="button" style="margin-top:12px;width:100%">Connect wallet</button>
+        <p class="tick" id="rhStatus" style="margin-top:10px;word-break:break-all"></p>
       </div>
     </section>
 
-    <section id="view-wallet" class="view">
+    <section id="view-wallet" class="view" style="display:none !important">
       <p class="kicker">Account</p>
       <h1>Wallet</h1>
       <p class="lede">Balances and tokens DualLaunch can see on this board. Swaps stay on PONS or pump.fun.</p>
@@ -982,7 +1006,7 @@
       const now = Date.now();
       const list = coins.filter((c) => {
         if (filter === "rh" || filter === "sol") { if (c.chain !== filter) return false; }
-        if (filter === "live" && graduated(c)) return false;
+        if (filter === "live" && !(Number(c.lastTrade||0) > now - 3600000)) return false;
         if (filter === "grad" && !graduated(c)) return false;
         if (filter === "soon" && (graduated(c) || pct(c) < 70 || pct(c) >= 100 || Date.now() - Number(c.created||0) > 7*86400000)) return false;
         if (filter === "m15") {
@@ -1356,7 +1380,7 @@
             </div>
             <div class="split" style="margin-top:8px">
               <button class="btn btn-ghost" type="button" onclick="copyText('${esc(c.address || "")}')">Copy contract</button>
-              <button class="btn btn-ghost" type="button" onclick="addToken('${esc(c.id)}')">Add to wallet</button>
+              <button class="btn btn-lime" type="button" onclick="openSwap('${esc(c.id)}')">Swap</button>
             </div>
             <p class="tick" style="margin-top:10px">${c.chain === "rh" ? "Explorer: robinhoodchain.blockscout.com" : "Explorer: solscan.io"}</p>
             <div class="split" style="margin-top:8px">
@@ -1605,7 +1629,7 @@
     }
     let solWalletObj = null;
     function passSolToJup() {
-      if (!window.Jupiter || !solWalletObj) return;
+      return;
       try {
         window.Jupiter.syncProps({
           enableWalletPassthrough: true,
@@ -1628,7 +1652,7 @@
         paintWallet();
         refreshEvmBal();
         toast("Robinhood Chain is active.");
-        show('wallet');
+        if (window.dlSwapWalletChanged) dlSwapWalletChanged();
       } catch (e) { toast(e.message || "EVM cancelled"); }
     }
     function namedSol(name) {
@@ -2167,5 +2191,268 @@
     startLive();
     window.addEventListener("hashchange", bootHash);
   </script>
+<script>
+/* DualLaunch swap: Solana via the Jupiter plugin, Robinhood Chain straight on the PONS bonding curve. */
+(function(){
+  const RH_FEE_WALLET = "0x9a029e139E875764Fa378f5Fd6a7953C9a225cE8"; // DualLaunch fee wallet on Robinhood Chain (0x…). Empty = no fee on Robinhood swaps.
+  const RH_FEE_BPS = 50;
+  const SOL_MINT = "So11111111111111111111111111111111111111112";
+  const BUY = "0x59a87bc1", SELL = "0xd04c6983";
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const here = "https://www.duallaunch.xyz/#swap";
+  const st = { side: "buy", wallets: [], prov: null, addr: "", token: "", market: "", graduated: false, symbol: "", quote: null, seq: 0 };
+
+  document.querySelectorAll(".dl-mobile-only").forEach(function(el){ el.style.display = isMobile ? "" : "none"; });
+  const links = {
+    swOpenPhantom: "https://phantom.app/ul/browse/" + encodeURIComponent(here) + "?ref=" + encodeURIComponent("https://www.duallaunch.xyz"),
+    swOpenSolflare: "https://solflare.com/ul/v1/browse/" + encodeURIComponent(here) + "?ref=" + encodeURIComponent("https://www.duallaunch.xyz"),
+    swOpenTrust: "https://link.trustwallet.com/open_url?coin_id=501&url=" + encodeURIComponent(here),
+    swOpenMetamask: "https://metamask.app.link/dapp/www.duallaunch.xyz/#swap",
+    swOpenTrustEvm: "https://link.trustwallet.com/open_url?coin_id=60&url=" + encodeURIComponent(here),
+    swOpenCoinbase: "https://go.cb-w.com/dapp?cb_url=" + encodeURIComponent(here)
+  };
+  Object.keys(links).forEach(function(k){ if ($(k)) $(k).href = links[k]; });
+
+  // ---------- Solana (Jupiter plugin with its own wallet list) ----------
+  let jupMint = null;
+  window.initSwap = function(mint) {
+    const want = mint || jupMint || "";
+    if (!window.Jupiter) { setTimeout(function(){ window.initSwap(mint); }, 600); return; }
+    if (jupReady && want === jupMint) return;
+    try {
+      const cfg = {
+        displayMode: "integrated",
+        integratedTargetId: "jupiter-plugin",
+        defaultExplorer: "Solscan",
+        enableWalletPassthrough: false,
+        branding: { name: "DualLaunch", logoUri: "https://www.duallaunch.xyz/logo.jpg" },
+        containerStyles: { width: "100%", borderRadius: "16px" },
+        formProps: { initialInputMint: SOL_MINT }
+      };
+      if (want) cfg.formProps.initialOutputMint = want;
+      if (JUP_REFERRAL && JUP_USE_FEE) { cfg.formProps.referralAccount = JUP_REFERRAL; cfg.formProps.referralFee = JUP_FEE_BPS; }
+      window.Jupiter.init(cfg);
+      jupReady = true; jupMint = want;
+    } catch (e) { toast("Swap failed to start. Refresh the page."); }
+  };
+
+  function tab(sol) {
+    $("jupBox").style.display = sol ? "block" : "none"; $("rhSwap").style.display = sol ? "none" : "block";
+    $("swapSolBtn").classList.toggle("on", sol); $("swapRhBtn").classList.toggle("on", !sol);
+    if (sol) window.initSwap(); else renderWallets();
+  }
+  $("swapSolBtn").onclick = function(){ tab(true); };
+  $("swapRhBtn").onclick = function(){ tab(false); };
+
+  window.openSwap = function(id) {
+    const c = (typeof coins !== "undefined" ? coins : []).find(function(x){ return x.id === id; }) || null;
+    show("swap");
+    const chainId = c ? c.chain : String(id).split("-")[0];
+    const addr = c ? c.address : String(id).split("-").slice(1).join("-");
+    if (!addr) return;
+    if (chainId === "sol") { tab(true); window.initSwap(addr); }
+    else { tab(false); $("rhSwapAddr").value = addr; loadToken(); }
+  };
+
+  // ---------- Robinhood Chain wallets (EIP-6963: MetaMask, Trust, Coinbase, Rabby, OKX…) ----------
+  window.addEventListener("eip6963:announceProvider", function(ev){
+    const d = ev.detail; if (!d || !d.info || !d.provider) return;
+    if (!st.wallets.some(function(w){ return w.info.uuid === d.info.uuid; })) st.wallets.push(d);
+    renderWallets();
+  });
+  window.dispatchEvent(new Event("eip6963:requestProvider"));
+
+  function renderWallets() {
+    const box = $("rhWallets"); if (!box) return;
+    let list = st.wallets.slice();
+    if (!list.length && window.ethereum) list = [{ info: { uuid: "injected", name: window.ethereum.isTrust ? "Trust Wallet" : window.ethereum.isCoinbaseWallet ? "Coinbase Wallet" : window.ethereum.isMetaMask ? "MetaMask" : "Browser wallet", icon: "" }, provider: window.ethereum }];
+    if (!list.length) { box.innerHTML = "<p class='tick'>No wallet found in this browser. Install MetaMask, Trust, Coinbase Wallet or Rabby" + (isMobile ? ", or open DualLaunch inside your wallet app below." : ".") + "</p>"; return; }
+    box.innerHTML = list.map(function(w, i){
+      return "<button class='btn btn-ghost' type='button' data-w='" + i + "'>" + (w.info.icon ? "<img src='" + w.info.icon + "' alt='' style='width:18px;height:18px;vertical-align:middle;margin-right:6px;border-radius:4px'/>" : "") + esc(w.info.name) + "</button>";
+    }).join("");
+    box.querySelectorAll("button").forEach(function(b){ b.onclick = function(){ connectRh(list[Number(b.dataset.w)]); }; });
+  }
+
+  async function connectRh(w) {
+    try {
+      const p = w.provider;
+      const acc = await p.request({ method: "eth_requestAccounts" });
+      try { await p.request({ method: "wallet_switchEthereumChain", params: [{ chainId: RH.chainId }] }); }
+      catch (e) { if (e.code === 4902 || /Unrecognized|not added/i.test(e.message || "")) await p.request({ method: "wallet_addEthereumChain", params: [RH] }); else throw e; }
+      st.prov = p; st.addr = acc[0];
+      if (p.on) { p.on("accountsChanged", function(a){ st.addr = a[0] || ""; paintRh(); }); }
+      try { evmAddr = acc[0]; if ($("btnEvm")) $("btnEvm").textContent = short(acc[0]) + " · RH"; } catch (e) {}
+      toast(w.info.name + " connected");
+      paintRh(); requote();
+    } catch (e) { toast(e && e.message ? e.message : "Connect cancelled"); }
+  }
+  window.dlSwapWalletChanged = function(){ const p = evmProvider(); if (p && evmAddr) { st.prov = p; st.addr = evmAddr; paintRh(); requote(); } };
+
+  // ---------- chain helpers ----------
+  const RPC = "https://rpc.mainnet.chain.robinhood.com";
+  async function rpc(method, params) {
+    const r = await fetch(RPC, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: method, params: params }) });
+    const j = await r.json(); if (j.error) throw new Error(j.error.message); return j.result;
+  }
+  const pad = function(h){ return String(h).replace(/^0x/, "").padStart(64, "0"); };
+  const hex = function(n){ return "0x" + BigInt(n).toString(16); };
+  function toWei(str, dec) {
+    const s = String(str || "").trim().replace(",", "."); if (!/^\d*\.?\d*$/.test(s) || !s || s === ".") return 0n;
+    const parts = s.split("."); const frac = (parts[1] || "").slice(0, dec).padEnd(dec, "0");
+    return BigInt(parts[0] || "0") * 10n ** BigInt(dec) + BigInt(frac || "0");
+  }
+  function fromWei(v, dec, max) { const n = Number(v) / 10 ** dec; return n.toLocaleString("en-US", { maximumFractionDigits: max == null ? 6 : max }); }
+  async function tokBal() { return st.addr ? BigInt(await rpc("eth_call", [{ to: st.token, data: "0x70a08231" + pad(st.addr) }, "latest"])) : 0n; }
+  async function ethBal() { return st.addr ? BigInt(await rpc("eth_getBalance", [st.addr, "latest"])) : 0n; }
+
+  async function loadToken() {
+    const a = ($("rhSwapAddr").value || "").trim().toLowerCase();
+    st.token = ""; st.market = ""; st.quote = null;
+    if (!/^0x[0-9a-f]{40}$/.test(a)) { $("rhTokInfo").textContent = a ? "Not a valid address." : ""; paintRh(); return; }
+    st.token = a;
+    const c = (typeof coins !== "undefined" ? coins : []).find(function(x){ return x.id === "rh-" + a; });
+    st.symbol = c ? c.symbol : "tokens";
+    $("rhTokInfo").textContent = "Finding the market…";
+    try {
+      const j = await (await fetch("/api/trades?chain=rh&addr=" + a)).json();
+      if (st.token !== a) return;
+      st.market = j.market || "";
+      st.price = Number(j.price || 0);
+      // graduated() is 1 on the curve contract once the coin moved to its pool
+      let grad = false;
+      if (st.market) { try { grad = BigInt(await rpc("eth_call", [{ to: st.market, data: "0xe7c2b772" }, "latest"])) === 1n; } catch (e) {} }
+      st.graduated = grad;
+      $("rhTokInfo").innerHTML = st.market
+        ? esc((c ? c.name + " · " : "") + st.symbol) + (st.price ? " · $" + fmtPx(st.price) : "")
+        : "No trading market found for this token yet.";
+    } catch (e) { $("rhTokInfo").textContent = "Could not load this token. Try again."; }
+    paintRh(); requote();
+  }
+  $("rhSwapAddr").oninput = function(){ clearTimeout(st.t); st.t = setTimeout(loadToken, 400); };
+
+  function setSide(side) {
+    st.side = side; $("rhSideBuy").classList.toggle("on", side === "buy"); $("rhSideSell").classList.toggle("on", side === "sell");
+    $("rhAmtLabel").textContent = side === "buy" ? "Amount (ETH)" : "Amount (" + (st.symbol || "tokens") + ")";
+    $("rhAmt").value = ""; st.quote = null; paintRh(); requote();
+  }
+  $("rhSideBuy").onclick = function(){ setSide("buy"); };
+  $("rhSideSell").onclick = function(){ setSide("sell"); };
+  $("rhAmt").oninput = function(){ clearTimeout(st.q); st.q = setTimeout(requote, 350); };
+  $("rhSlip").onchange = requote;
+  $("rhMax").onclick = async function(){
+    if (!st.addr) { toast("Connect a wallet first"); return; }
+    if (st.side === "buy") { const b = await ethBal(); const keep = 2n * 10n ** 14n; $("rhAmt").value = b > keep ? (Number(b - keep) / 1e18).toFixed(6) : "0"; }
+    else { const b = await tokBal(); $("rhAmt").value = (Number(b) / 1e18).toFixed(4); }
+    requote();
+  };
+
+  function feeOf(wei) { return RH_FEE_WALLET ? (wei * BigInt(RH_FEE_BPS)) / 10000n : 0n; }
+
+  async function simulate(amount) {
+    // Exact quote: run the trade as an eth_call from the user's own address.
+    const from = st.addr || "0x000000000000000000000000000000000000dEaD";
+    if (st.side === "buy") {
+      const net = amount - feeOf(amount);
+      return BigInt(await rpc("eth_call", [{ from: from, to: st.market, value: hex(net), data: BUY + pad(net.toString(16)) + pad("0") + pad(from) }, "latest"]));
+    }
+    return BigInt(await rpc("eth_call", [{ from: from, to: st.market, data: SELL + pad(amount.toString(16)) + pad("0") + pad(from) }, "latest"]));
+  }
+
+  async function requote() {
+    const my = ++st.seq; st.quote = null;
+    const amt = toWei($("rhAmt").value, 18);
+    if (!st.market || amt <= 0n) { $("rhQuote").textContent = st.market ? "Enter an amount to see the quote." : ""; paintRh(); return; }
+    if (st.graduated) { $("rhQuote").innerHTML = "This coin graduated to its PONS pool. Trade it on <a href='https://www.ponsfamily.com/token/" + st.token + "' target='_blank' rel='noopener'>PONS</a>."; paintRh(); return; }
+    $("rhQuote").textContent = "Getting quote…";
+    try {
+      const out = await simulate(amt);
+      if (my !== st.seq) return;
+      st.quote = { amt: amt, out: out };
+      const fee = st.side === "buy" ? feeOf(amt) : feeOf(out);
+      const recv = st.side === "buy" ? out : out - fee;
+      $("rhQuote").innerHTML = "You get about <b>" + (st.side === "buy" ? fromWei(recv, 18, 2) + " " + esc(st.symbol) : fromWei(recv, 18, 6) + " ETH") + "</b>" +
+        (fee > 0n ? "<br><span class='tick'>DualLaunch fee 0.5%: " + fromWei(fee, 18, 6) + " ETH</span>" : "");
+    } catch (e) {
+      if (my !== st.seq) return;
+      const m = String(e.message || e);
+      $("rhQuote").textContent = /insufficient funds/i.test(m) ? "Not enough ETH in this wallet for this amount." : /allowance|transfer amount exceeds|ERC20/i.test(m) && st.side === "sell" ? (st.addr ? "Quote after approval. Press Sell to approve first." : "Connect a wallet to see a sell quote.") : "No quote right now. Try a smaller amount.";
+      if (st.side === "sell" && /allowance/i.test(m)) st.quote = { amt: amt, out: 0n, needApprove: true };
+    }
+    paintRh();
+  }
+
+  async function paintRh() {
+    $("rhWalletState").textContent = st.addr ? "Connected: " + short(st.addr) : "Not connected";
+    const go = $("rhGo");
+    if (!st.addr) go.textContent = "Connect wallet";
+    else if (!st.market) go.textContent = "Pick a token";
+    else go.textContent = st.side === "buy" ? "Buy " + (st.symbol || "") : "Sell " + (st.symbol || "");
+    go.disabled = !!(st.addr && (!st.market || st.graduated || !st.quote));
+    if (st.addr && st.market) {
+      try {
+        const [e, t] = await Promise.all([ethBal(), tokBal()]);
+        $("rhBal").textContent = "Balance: " + fromWei(e, 18, 5) + " ETH · " + fromWei(t, 18, 2) + " " + (st.symbol || "");
+      } catch (x) {}
+    } else $("rhBal").textContent = "";
+  }
+
+  async function waitTx(hash) {
+    for (let i = 0; i < 90; i++) {
+      const r = await rpc("eth_getTransactionReceipt", [hash]).catch(function(){ return null; });
+      if (r) { if (r.status !== "0x1") throw new Error("Transaction failed on chain"); return r; }
+      await new Promise(function(res){ setTimeout(res, 1000); });
+    }
+    throw new Error("Still pending. Check your wallet.");
+  }
+
+  $("rhGo").onclick = async function(){
+    if (!st.addr) { const b = document.querySelector("#rhWallets button"); if (b) b.click(); else toast("Install or open a wallet first"); return; }
+    if (!st.quote || !st.market) return;
+    const slip = BigInt(Number($("rhSlip").value) * 100);
+    const p = st.prov, from = st.addr, status = $("rhStatus");
+    try {
+      if (st.side === "buy") {
+        const amt = st.quote.amt, fee = feeOf(amt), net = amt - fee;
+        const out = await simulate(amt);
+        const min = (out * (10000n - slip)) / 10000n;
+        if (fee > 0n) {
+          status.textContent = "Confirm the 0.5% DualLaunch fee in your wallet…";
+          await waitTx(await p.request({ method: "eth_sendTransaction", params: [{ from: from, to: RH_FEE_WALLET, value: hex(fee) }] }));
+        }
+        status.textContent = "Confirm the buy in your wallet…";
+        const h = await p.request({ method: "eth_sendTransaction", params: [{ from: from, to: st.market, value: hex(net), data: BUY + pad(net.toString(16)) + pad(min.toString(16)) + pad(from) }] });
+        status.textContent = "Sent. Waiting for confirmation…"; await waitTx(h);
+        status.innerHTML = "Done. <a href='https://robinhoodchain.blockscout.com/tx/" + h + "' target='_blank' rel='noopener'>View transaction</a>";
+      } else {
+        const amt = st.quote.amt;
+        const allow = BigInt(await rpc("eth_call", [{ to: st.token, data: "0xdd62ed3e" + pad(from) + pad(st.market) }, "latest"]));
+        if (allow < amt) {
+          status.textContent = "Approve " + st.symbol + " for selling in your wallet…";
+          await waitTx(await p.request({ method: "eth_sendTransaction", params: [{ from: from, to: st.token, data: "0x095ea7b3" + pad(st.market) + pad(amt.toString(16)) }] }));
+        }
+        const out = await simulate(amt);
+        const min = (out * (10000n - slip)) / 10000n;
+        status.textContent = "Confirm the sell in your wallet…";
+        const h = await p.request({ method: "eth_sendTransaction", params: [{ from: from, to: st.market, data: SELL + pad(amt.toString(16)) + pad(min.toString(16)) + pad(from) }] });
+        status.textContent = "Sent. Waiting for confirmation…"; await waitTx(h);
+        const fee = feeOf(out);
+        if (fee > 0n) {
+          status.textContent = "Confirm the 0.5% DualLaunch fee in your wallet…";
+          await waitTx(await p.request({ method: "eth_sendTransaction", params: [{ from: from, to: RH_FEE_WALLET, value: hex(fee) }] }));
+        }
+        status.innerHTML = "Done. <a href='https://robinhoodchain.blockscout.com/tx/" + h + "' target='_blank' rel='noopener'>View transaction</a>";
+      }
+      toast("Swap complete");
+      $("rhAmt").value = ""; st.quote = null; paintRh(); requote();
+    } catch (e) {
+      status.textContent = (e && e.code === 4001) ? "Cancelled in wallet." : "Swap failed: " + String((e && e.message) || e).slice(0, 160);
+    }
+  };
+
+  renderWallets(); paintRh();
+  if ((location.hash || "") === "#swap") setTimeout(function(){ show("swap"); }, 300);
+})();
+</script>
+
 </body>
 </html>
