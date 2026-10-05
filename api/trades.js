@@ -1,57 +1,59 @@
+const { Pool } = require("pg");
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+  max: 1
+});
+
 module.exports = async function handler(req, res) {
+  res.setHeader("Cache-Control", "s-maxage=5, stale-while-revalidate=15");
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Cache-Control", "s-maxage=3");
-  const addr = String((req.query && req.query.addr) || "");
+  const addr = String((req.query && (req.query.addr || req.query.token)) || "");
   const chain = String((req.query && req.query.chain) || "sol");
-  if (!addr) { res.status(200).json({ ok: false, trades: [] }); return; }
-  function num(v) {
-    const n = Number(v);
-    return Number.isFinite(n) ? n : 0;
+  const tokenId = chain + "-" + (chain === "rh" ? addr.toLowerCase() : addr);
+  if (!process.env.DATABASE_URL || !addr) {
+    return res.status(200).json({ ok: false, trades: [] });
   }
   try {
-    const net = chain === "rh" ? "robinhood" : "solana";
-    const ds = await fetch("https://api.dexscreener.com/latest/dex/tokens/" + encodeURIComponent(addr), {
-      headers: { accept: "application/json" }
-    });
-    const dj = await ds.json();
-    const want = String(addr).toLowerCase();
-    const pairs = dj.pairs || [];
-    const pair = pairs.find((p) => String((p.baseToken || {}).address || "").toLowerCase() === want) || pairs[0];
-    const pool = pair && (pair.pairAddress || pair.address);
-    const pairPrice = pair ? num(pair.priceUsd) : 0;
-    let trades = [];
-    if (pool) {
-      const g = await fetch(
-        "https://api.geckoterminal.com/api/v2/networks/" + net + "/pools/" + encodeURIComponent(pool) + "/trades?trade_volume_in_usd_greater_than=0",
-        { headers: { accept: "application/json" } }
-      );
-      if (g.ok) {
-        const gj = await g.json();
-        trades = (gj.data || []).slice(0, 20).map((t) => {
-          const a = t.attributes || {};
-          const kind = String(a.kind || "").toLowerCase() === "sell" ? "sell" : "buy";
-          const usd = num(a.volume_in_usd);
-          // Gecko: buy = spend quote, receive base (meme). sell = spend meme, receive quote.
-          let tokens = kind === "buy" ? num(a.to_token_amount) : num(a.from_token_amount);
-          if (tokens > 1e12) tokens = tokens / 1e9;
-          if (tokens <= 0 && pairPrice > 0 && usd > 0) tokens = usd / pairPrice;
-          const price = tokens > 0 ? usd / tokens : pairPrice;
-          return { kind, usd, tokens, price, at: a.block_timestamp || "" };
-        });
-      }
-    }
-    const tx = pair && pair.txns && pair.txns.h24 ? pair.txns.h24 : {};
+    const token = await pool.query(
+      "select price_usd, mcap_usd from tokens where id = $1",
+      [tokenId]
+    );
+    const row = token.rows[0] || {};
+    const q = await pool.query(
+      `select side, price_usd, block_time
+       from trades
+       where token_id = $1
+       order by block_time desc
+       limit 30`,
+      [tokenId]
+    );
+    const counts = await pool.query(
+      `select side, count(*)::int n
+       from trades
+       where token_id = $1 and block_time > now() - interval '24 hours'
+       group by side`,
+      [tokenId]
+    );
+    const buys = (counts.rows.find((r) => r.side === "buy") || {}).n || 0;
+    const sells = (counts.rows.find((r) => r.side === "sell") || {}).n || 0;
     res.status(200).json({
       ok: true,
-      mcap: pair ? num(pair.marketCap || pair.fdv) : 0,
-      vol: pair && pair.volume ? num(pair.volume.h24) : 0,
-      buys: tx.buys || 0,
-      sells: tx.sells || 0,
-      price: pairPrice,
-      pair: pool || "",
-      trades
+      source: "duallaunch-index",
+      mcap: Number(row.mcap_usd || 0),
+      price: Number(row.price_usd || 0),
+      buys,
+      sells,
+      trades: q.rows.map((t) => ({
+        kind: t.side,
+        usd: null,
+        tokens: null,
+        price: Number(t.price_usd || 0),
+        at: t.block_time
+      }))
     });
   } catch (e) {
-    res.status(200).json({ ok: false, error: String(e.message || e), trades: [] });
+    res.status(200).json({ ok: false, trades: [], error: String(e.message || e) });
   }
 };

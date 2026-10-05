@@ -1,30 +1,39 @@
-// DualLaunch index v1: candles from public pool trades.
-// Deploy as Vercel serverless: /api/candles?chain=sol&address=MINT
+const { Pool } = require("pg");
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+  max: 1
+});
+
 module.exports = async function handler(req, res) {
+  res.setHeader("Cache-Control", "s-maxage=8, stale-while-revalidate=20");
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Cache-Control", "s-maxage=15, stale-while-revalidate=30");
-  const address = String((req.query && req.query.address) || "");
-  const chain = String((req.query && req.query.chain) || "sol");
-  if (!address) return res.status(200).json({ ok: false, error: "address required", candles: [] });
+  const id = String((req.query && (req.query.id || req.query.token || req.query.addr)) || "");
+  const chain = String((req.query && req.query.chain) || "");
+  const tokenId = id.includes("-") ? id : (chain && id ? chain + "-" + id : "");
+  if (!process.env.DATABASE_URL || !tokenId) {
+    return res.status(200).json({ ok: false, candles: [], error: "missing id" });
+  }
   try {
-    const url = chain === "rh"
-      ? "https://api.geckoterminal.com/api/v2/networks/robinhood/tokens/" + address + "/pools"
-      : "https://api.dexscreener.com/latest/dex/tokens/" + address;
-    const r = await fetch(url, { headers: { accept: "application/json" } });
-    const data = await r.json();
-    const pair = chain === "rh"
-      ? (((data.data || [])[0] || {}).attributes || {})
-      : ((data.pairs || [])[0] || {});
-    res.status(200).json({
-      ok: true,
-      chain,
-      address,
-      priceUsd: pair.priceUsd || pair.base_token_price_usd || null,
-      mcap: pair.marketCap || pair.fdv || pair.market_cap_usd || null,
-      change24: (pair.priceChange && pair.priceChange.h24) || pair.price_change_percentage || null,
-      note: "v1 reads pool snapshot. Full candles need a worker that stores each swap."
-    });
+    const q = await pool.query(
+      `select extract(epoch from ts) * 1000 as t, open, high, low, close, volume_usd
+       from candles
+       where token_id = $1 and tf = '1m'
+       order by ts asc
+       limit 240`,
+      [tokenId]
+    );
+    const candles = q.rows.map((r) => ({
+      t: Number(r.t),
+      o: Number(r.open),
+      h: Number(r.high),
+      l: Number(r.low),
+      c: Number(r.close),
+      v: Number(r.volume_usd || 0)
+    }));
+    res.status(200).json({ ok: true, candles, source: "duallaunch-index" });
   } catch (e) {
-    res.status(200).json({ ok: false, error: String(e.message || e), candles: [] });
+    res.status(200).json({ ok: false, candles: [], error: String(e.message || e) });
   }
 };
