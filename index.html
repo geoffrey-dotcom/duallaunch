@@ -816,14 +816,7 @@
       return embedify(c.chart || ("https://dexscreener.com/" + chain + "/" + (c.address || "")));
     }
     function liveCandle(c) {
-      const addr = c.address || "";
-      if (!addr) return embedChart(c);
-      if (c.chain === "sol") {
-        return "https://embed.birdeye.so/tv-widget/" + encodeURIComponent(addr) +
-          "?chain=solana&viewMode=pair&chartInterval=15&chartType=Candle&theme=dark&chartLeftToolbar=hide";
-      }
-      return "https://www.geckoterminal.com/robinhood/tokens/" + encodeURIComponent(addr) +
-        "?embed=1&info=0&swaps=0&light_chart=0&resolution=15m";
+      return "about:blank";
     }
     async function resolveDexPair(c) {
       if (!c.address) return embedChart(c);
@@ -1128,9 +1121,9 @@
           paintCandles(canvas, rows);
           if (note) note.textContent = rows.length + " candles · " + (j.source||"pool") + (c.mcap ? " · MC " + money(c.mcap) : "");
         } else {
-          if (canvas) canvas.style.display = "none";
-          if (iframe) { iframe.style.display="block"; iframe.style.height="420px"; iframe.style.minHeight="280px"; }
-          if (note) note.textContent = "Live pair chart · " + (c.mcap ? "MC " + money(c.mcap) : "mcap pending");
+          if (canvas) canvas.style.display = "block";
+          if (iframe) { iframe.style.display = "none"; iframe.src = "about:blank"; }
+          if (note) note.textContent = "DualLaunch chart needs a few of our own trades first.";
         }
       } catch (e) {
         if (note) note.textContent = "Candle feed down. Use Open DexScreener.";
@@ -1161,7 +1154,7 @@
             <div class="chart-wrap">
               <canvas id="dlCandles" class="chart-frame" width="900" height="360"></canvas>
               <p class="tick" id="chartNote" style="padding:12px">DualLaunch candles from pool trades. Dex embed is optional.</p>
-              <iframe class="chart-frame" id="dexChart" title="Chart" src="${esc(dex)}" style="height:0;min-height:0;display:none"></iframe>
+              <iframe class="chart-frame" id="dexChart" title="Chart" src="about:blank" style="height:0;min-height:0;display:none"></iframe>
             </div>
             <div class="bar" style="height:8px;margin-top:16px"><i style="width:${pct(c)}%"></i></div>
             <p class="lede" style="margin-top:14px">${esc((c.desc || "No description.").slice(0, 280))}</p>
@@ -1663,6 +1656,7 @@
     }
 
     async function quoteVisible() {
+      return;
       const rows = coins.slice(0, 40);
       const sol = rows.filter((c) => c.chain !== "rh" && c.address).map((c) => c.address);
       const rh = rows.filter((c) => c.chain === "rh" && c.address && c.address.startsWith("0x")).map((c) => c.address);
@@ -1984,9 +1978,7 @@
       const dex = (chain==="rh"||(on&&on.chain==="rh"))
         ? ("https://dexscreener.com/robinhood/" + encodeURIComponent(on&&on.address||raw))
         : ("https://dexscreener.com/solana/" + encodeURIComponent(on&&on.address||raw));
-      const bird = (chain!=="rh" && !(on&&on.chain==="rh"))
-        ? ("https://birdeye.so/token/" + encodeURIComponent(on&&on.address||raw) + "?chain=solana")
-        : "";
+      const bird = "";
       const share = location.origin + "/?coin=" + encodeURIComponent(on ? on.id : ((chain||"sol")+"-"+raw.toLowerCase()));
       box.innerHTML = `
         <p class="tick">${esc(chain==="rh"?"Robinhood / PONS":chain==="sol"?"Solana / pump.fun":"Unknown format")} ${on?("· on board: "+esc(on.symbol)): "· not on this feed yet"}</p>
