@@ -1112,12 +1112,16 @@
       if (!(max > min)) { min = min * 0.98; max = max * 1.02 || 1; }
       const span = max - min;
       const n = rows.length;
-      const slot = (w - pad * 2) / n;
+      const axis = 74 * dpr;
+      const slot = (w - pad * 2 - axis) / n;
       const bw = Math.max(2 * dpr, Math.min(7 * dpr, slot * 0.55));
       ctx.strokeStyle = "#242433"; ctx.lineWidth = dpr;
       for (let g = 0; g < 4; g++) {
         const y = pad + g * ((h-pad*2)/3);
-        ctx.beginPath(); ctx.moveTo(pad,y); ctx.lineTo(w-pad,y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(pad,y); ctx.lineTo(w-pad-axis,y); ctx.stroke();
+        ctx.fillStyle = "#8b8c9a"; ctx.font = (10 * dpr) + "px 'IBM Plex Mono', monospace"; ctx.textBaseline = "middle";
+        ctx.fillText("$" + fmtPx(max - g * span / 3), w - pad - axis + 6 * dpr, y);
+        ctx.strokeStyle = "#242433";
       }
       rows.forEach(function(r,i){
         const o=Number(r.o||r.c), c=Number(r.c), hi=Number(r.h||c), lo=Number(r.l||c);
@@ -1132,6 +1136,12 @@
         const bh = Math.max(2 * dpr, Math.abs(y(c)-y(o)));
         ctx.fillRect(x - bw/2, top, bw, bh);
       });
+      // last price tag
+      const lastC = Number(rows[rows.length-1].c);
+      const ly = pad + (1 - (Math.min(max, Math.max(min, lastC))-min)/span) * (h-pad*2);
+      ctx.fillStyle = "#b8ff3a"; ctx.fillRect(w - pad - axis + 2 * dpr, ly - 9 * dpr, axis - 2 * dpr, 18 * dpr);
+      ctx.fillStyle = "#07070c"; ctx.font = "700 " + (10 * dpr) + "px 'IBM Plex Mono', monospace"; ctx.textBaseline = "middle";
+      ctx.fillText("$" + fmtPx(lastC), w - pad - axis + 6 * dpr, ly);
       // DualLaunch index stamp
       const ms = 22 * dpr, mx = pad, my = pad;
       ctx.globalAlpha = 0.9;
@@ -1150,16 +1160,23 @@
       ctx.globalAlpha = 1;
       return true;
     }
+    function setTf(tf, id) {
+      window.__dlTf = tf;
+      document.querySelectorAll("#tfBar [data-tf]").forEach(function(b){ b.className = "btn " + (b.dataset.tf === tf ? "btn-lime" : "btn-ghost"); });
+      const c = coins.find(function(x){ return x.id === id; });
+      if (c) loadDlCandles(c);
+    }
+    function fmtPx(v) { v = Number(v); if (!v) return "0"; return v >= 1 ? v.toFixed(4) : v >= 0.0001 ? v.toPrecision(4) : v.toExponential(3); }
     async function loadDlCandles(c) {
       const note = $("chartNote");
       const canvas = $("dlCandles");
       if (!canvas || !c) return;
       try {
-        const r = await fetch("/api/candles?chain=" + encodeURIComponent(c.chain) + "&token=" + encodeURIComponent(c.address||"") + "&id=" + encodeURIComponent(c.id||"") + "&pair=" + encodeURIComponent(c.pair||""));
+        const r = await fetch("/api/candles?chain=" + encodeURIComponent(c.chain) + "&token=" + encodeURIComponent(c.address||"") + "&id=" + encodeURIComponent(c.id||"") + "&pair=" + encodeURIComponent(c.pair||"") + "&tf=" + (window.__dlTf||"1m"));
         const j = await r.json();
         const rows = j.candles || [];
         const iframe = $("dexChart");
-        if (rows.length >= 3) {
+        if (rows.length >= 1) {
           canvas.style.display = "block";
           if (iframe) { iframe.style.display = "none"; }
           paintCandles(canvas, rows);
@@ -1196,6 +1213,7 @@
               <div class="stat"><b>Market</b>${esc(c.mcap ? money(c.mcap) : (c.vol || "—"))}</div>
               <div class="stat"><b>Price</b>${c.priceUsd ? ("$"+Number(c.priceUsd).toPrecision(4)) : "—"}</div>
             </div>
+            <div class="split" id="tfBar" style="margin-bottom:8px;gap:6px">${["1m","5m","1h"].map(t=>`<button type="button" class="btn ${t===(window.__dlTf||"1m")?"btn-lime":"btn-ghost"}" data-tf="${t}" onclick="setTf('${t}','${esc(c.id)}')">${t==="1m"?"1 min":t==="5m"?"5 min":"1 hour"}</button>`).join("")}</div>
             <div class="chart-wrap">
               <canvas id="dlCandles" class="chart-frame" width="900" height="360" style="display:none"></canvas>
               <p class="tick" id="chartNote" style="padding:12px">Loading chart…</p>
@@ -1269,14 +1287,15 @@
           html += "<p class='kicker' style='margin-top:14px'>Recent trades</p>";
           if (!trades.length) html += "<p class='tick'>No tape yet. Open the official pad for the live book.</p>";
           else {
-            html += "<table class='tape'><thead><tr><th>Side</th><th>USD</th><th>Tokens</th><th>Time</th></tr></thead><tbody>";
+            html += "<table class='tape'><thead><tr><th>Side</th><th>USD</th><th>Tokens</th><th>Price</th><th>Time</th></tr></thead><tbody>";
             html += trades.map(function(tr){
               const buy = String(tr.kind).toLowerCase().indexOf("sell") < 0;
               const usd = Number(tr.usd || 0);
               const tok = Number(tr.tokens || 0);
-              const tm = tr.at ? new Date(tr.at).toLocaleTimeString() : "—";
-              if (!usd && !tok) return "<tr><td class='" + (buy?"buy":"sell") + "'>" + (buy?"Buy":"Sell") + "</td><td colspan='2' class='tick'>size not indexed</td><td>" + tm + "</td></tr>";
-              return "<tr><td class='" + (buy?"buy":"sell") + "'>" + (buy?"Buy":"Sell") + "</td><td>$" + usd.toLocaleString(undefined,{maximumFractionDigits:2}) + "</td><td>" + tok.toLocaleString(undefined,{maximumFractionDigits:2}) + " " + esc(c.symbol) + "</td><td class='tick'>" + tm + "</td></tr>";
+              const ageS = tr.at ? Math.max(0, (Date.now() - new Date(tr.at).getTime()) / 1000) : -1;
+              const tm = ageS < 0 ? "—" : ageS < 60 ? Math.floor(ageS) + "s ago" : ageS < 3600 ? Math.floor(ageS/60) + "m ago" : ageS < 86400 ? Math.floor(ageS/3600) + "h ago" : Math.floor(ageS/86400) + "d ago";
+              if (!usd && !tok) return "<tr><td class='" + (buy?"buy":"sell") + "'>" + (buy?"Buy":"Sell") + "</td><td colspan='3' class='tick'>size not indexed</td><td>" + tm + "</td></tr>";
+              return "<tr><td class='" + (buy?"buy":"sell") + "'>" + (buy?"Buy":"Sell") + "</td><td>$" + usd.toLocaleString(undefined,{maximumFractionDigits:2}) + "</td><td>" + tok.toLocaleString(undefined,{maximumFractionDigits:2}) + " " + esc(c.symbol) + "</td><td class='tick'>$" + fmtPx(tr.price) + "</td><td class='tick'>" + tm + "</td></tr>";
             }).join("");
             html += "</tbody></table>";
           }
