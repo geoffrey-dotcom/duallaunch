@@ -1035,7 +1035,9 @@
         const base = visible();
         const newest = base.slice().sort((a,b)=>(b.created||0)-(a.created||0)).slice(0, 24);
         const week = Date.now() - 7*86400000;
-        const hot = base.filter((c)=>Number(c.mcap||0)>=15000 && Number(c.created||0)>=week)
+        const newestIds = {};
+        newest.forEach((c)=>{ newestIds[c.id] = 1; });
+        const hot = base.filter((c)=>!newestIds[c.id] && Number(c.mcap||0)>=15000 && Number(c.created||0)>=week)
           .sort((a,b)=>(b.mcap||0)-(a.mcap||0)).slice(0, 24);
         fillTable($("boardNew"), newest);
         fillTable($("boardHot"), hot);
@@ -1221,9 +1223,11 @@
             c.mcap = j.mcap;
             c.vol = "$" + Math.round(j.mcap).toLocaleString();
           }
+          const mc = Number(j.mcap || c.mcap || 0);
+          const px = Number(j.price || c.priceUsd || 0);
           html += "<p class='kicker'>Market</p>";
-          html += "<div class='stats'><div class='stat'><b>MC</b>" + (j.mcap ? "$" + Math.round(j.mcap).toLocaleString() : "—") + "</div>";
-          html += "<div class='stat'><b>Price</b>" + (j.price ? "$" + Number(j.price).toPrecision(4) : "—") + "</div>";
+          html += "<div class='stats'><div class='stat'><b>MC</b>" + (mc ? "$" + Math.round(mc).toLocaleString("en-US") : "—") + "</div>";
+          html += "<div class='stat'><b>Price</b>" + (px ? "$" + Number(px).toPrecision(4) : "—") + "</div>";
           html += "<div class='stat'><b>24h buys</b>" + (j.buys || 0) + "</div>";
           html += "<div class='stat'><b>24h sells</b>" + (j.sells || 0) + "</div></div>";
           const trades = j.trades || [];
