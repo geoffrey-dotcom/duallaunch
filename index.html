@@ -425,6 +425,15 @@
     .board-head,.tile{min-width:680px;}
   }
 </style>
+
+<style id="dl-board-fix">
+@media (max-width: 1100px) {
+  .desk { display: block !important; grid-template-columns: 1fr !important; }
+  aside.rail, .rail { position: static !important; width: 100% !important; max-width: none !important; margin: 12px 0 0 !important; }
+  #dualBoard, #boardNew, #boardHot, .dual-grid, .table { width: 100% !important; max-width: 100% !important; }
+  .dual-grid { grid-template-columns: 1fr !important; }
+}
+</style>
 </head>
 <body>
   <div class="shell">
@@ -699,7 +708,7 @@
       const v=Number(n||0);
       if(!v) return "—";
       if(v>=1e6) return "$"+(v/1e6).toFixed(2)+"M";
-      if(v>=1e3) return "$"+Math.round(v).toLocaleString();
+      if(v>=1e3) return "$"+Math.round(v).toLocaleString("en-US");
       return "$"+v.toFixed(2);
     }
     const $ = (id) => document.getElementById(id);
