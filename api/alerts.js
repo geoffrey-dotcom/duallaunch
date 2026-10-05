@@ -35,13 +35,7 @@ function photosOf(c) {
   const a = c.address || "";
   const out = [];
   if (c.logo && /^https?:\/\//i.test(c.logo)) out.push(c.logo);
-  if (a && c.chain === "sol") {
-    out.push("https://dd.dexscreener.com/ds-data/tokens/solana/" + a + "/header.png");
-    out.push("https://dd.dexscreener.com/ds-data/tokens/solana/" + a + ".png");
-  }
-  if (a && c.chain === "rh") {
-    out.push("https://dd.dexscreener.com/ds-data/tokens/robinhood/" + a + "/header.png");
-  }
+  out.push(SITE + "/logo.jpg");
   return out;
 }
 
@@ -49,9 +43,7 @@ function payload(c) {
   const pct = Math.min(100, ((Number(c.raised || 0) / (c.goal || 1)) * 100));
   const chain = c.chain === "rh" ? "PONS" : "pump.fun";
   const pad = c.link || SITE;
-  const dex = c.chain === "rh"
-    ? "https://www.geckoterminal.com/robinhood/tokens/" + (c.address || "")
-    : "https://dexscreener.com/solana/" + (c.address || "");
+  const dex = SITE + "/?coin=" + encodeURIComponent(c.id || "");
   const scan = c.chain === "rh"
     ? "https://robinhoodchain.blockscout.com/token/" + (c.address || "")
     : "https://solscan.io/token/" + (c.address || "");
