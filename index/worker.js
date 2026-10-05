@@ -266,9 +266,28 @@ async function handlePumpSig(sig) {
   }
 }
 
+async function pumpInfo(mintKey) {
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 4000);
+    const r = await fetch("https://frontend-api-v3.pump.fun/coins/" + mintKey, { signal: ctrl.signal });
+    clearTimeout(t);
+    if (!r.ok) return null;
+    const j = await r.json();
+    return {
+      name: j.name || "",
+      symbol: j.symbol || "",
+      logo: j.image_uri || "",
+      mcapUsd: Number(j.usd_market_cap || 0)
+    };
+  } catch (e) {
+    return null;
+  }
+}
+
 async function pollPump() {
   const seen = await cursor("sol-sig");
-  const sigs = await connection.getSignaturesForAddress(PUMP, { limit: 25 });
+  const sigs = await connection.getSignaturesForAddress(PUMP, { limit: 80 });
   const fresh = [];
   for (const s of sigs) {
     if (s.signature === seen) break;
@@ -279,7 +298,34 @@ async function pollPump() {
     try { await handlePumpSig(sig); } catch (e) { console.error("pump", sig, e.message); }
     await setCursor("sol-sig", sig);
   }
-  if (fresh.length) console.log("pump", fresh.length);
+  if (fresh.length) console.log("pump", fresh.length, fresh.length === sigs.length ? "behind" : "ok");
+}
+
+async function backfillNames() {
+  const q = await pool.query(
+    "select id, chain, address from tokens where chain = 'sol' and (name is null or name = '' or name = 'Unnamed') order by updated_at desc limit 12"
+  );
+  let n = 0;
+  for (const row of q.rows) {
+    try {
+      const mint = new PublicKey(row.address);
+      const meta = await readMeta(mint);
+      let name = meta && meta.name;
+      let symbol = meta && meta.symbol;
+      let logo = meta && meta.uri ? await resolveLogo(meta.uri) : "";
+      if (!name) {
+        const info = await pumpInfo(row.address);
+        if (info) { name = info.name; symbol = info.symbol || symbol; logo = info.logo || logo; }
+      }
+      if (!name) continue;
+      await pool.query(
+        "update tokens set name = $2, symbol = coalesce(nullif($3, ''), symbol), logo = coalesce(nullif($4, ''), logo), updated_at = now() where id = $1",
+        [row.id, name, symbol || "", logo || ""]
+      );
+      n++;
+    } catch (e) {}
+  }
+  if (n) console.log("names", n);
 }
 
 async function rh(method, params) {
@@ -374,11 +420,12 @@ async function pollPons() {
 async function tick() {
   await pollPump();
   try { await pollPons(); } catch (e) { console.error("pons", e.message); }
+  try { await backfillNames(); } catch (e) { console.error("names", e.message); }
 }
 
 async function main() {
   await pool.query("select 1");
-  console.log("index worker up build 7");
+  console.log("index worker up build 8");
   for (;;) {
     try { await tick(); } catch (e) { console.error("tick", e.message); }
     await sleep(8000);
