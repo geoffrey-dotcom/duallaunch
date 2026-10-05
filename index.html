@@ -1163,8 +1163,8 @@
               <div class="stat"><b>Price</b>${c.priceUsd ? ("$"+Number(c.priceUsd).toPrecision(4)) : "—"}</div>
             </div>
             <div class="chart-wrap">
-              <canvas id="dlCandles" class="chart-frame" width="900" height="360"></canvas>
-              <p class="tick" id="chartNote" style="padding:12px">DualLaunch candles from pool trades. Dex embed is optional.</p>
+              <canvas id="dlCandles" class="chart-frame" width="900" height="360" style="display:none"></canvas>
+              <p class="tick" id="chartNote" style="padding:12px">Chart comes from the official pad. Open coin if this box stays empty.</p>
               <iframe class="chart-frame" id="dexChart" title="Chart" src="about:blank" style="height:0;min-height:0;display:none"></iframe>
             </div>
             <div class="bar" style="height:8px;margin-top:16px"><i style="width:${pct(c)}%"></i></div>
@@ -1223,8 +1223,8 @@
             c.mcap = j.mcap;
             c.vol = "$" + Math.round(j.mcap).toLocaleString();
           }
-          const mc = Number(j.mcap || c.mcap || 0);
-          const px = Number(j.price || c.priceUsd || 0);
+          const mc = Number(c.mcap || 0);
+          const px = Number(c.priceUsd || 0);
           html += "<p class='kicker'>Market</p>";
           html += "<div class='stats'><div class='stat'><b>MC</b>" + (mc ? "$" + Math.round(mc).toLocaleString("en-US") : "—") + "</div>";
           html += "<div class='stat'><b>Price</b>" + (px ? "$" + Number(px).toPrecision(4) : "—") + "</div>";
@@ -1240,6 +1240,7 @@
               const usd = Number(tr.usd || 0);
               const tok = Number(tr.tokens || 0);
               const tm = tr.at ? new Date(tr.at).toLocaleTimeString() : "—";
+              if (!usd && !tok) return "<tr><td class='" + (buy?"buy":"sell") + "'>" + (buy?"Buy":"Sell") + "</td><td colspan='2' class='tick'>size not indexed</td><td>" + tm + "</td></tr>";
               return "<tr><td class='" + (buy?"buy":"sell") + "'>" + (buy?"Buy":"Sell") + "</td><td>$" + usd.toLocaleString(undefined,{maximumFractionDigits:2}) + "</td><td>" + tok.toLocaleString(undefined,{maximumFractionDigits:2}) + " " + esc(c.symbol) + "</td><td class='tick'>" + tm + "</td></tr>";
             }).join("");
             html += "</tbody></table>";
