@@ -1,12 +1,11 @@
-const UPSTREAM = "https://duallaunch-fix-buddy.lovable.app/api/public/trades";
-
-module.exports = async function handler(req, res) {
+module.exports = async (req, res) => {
+  const q = req.url.split("?")[1] || "";
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Cache-Control", "s-maxage=5, stale-while-revalidate=15");
-
-  const q = req.query || {};
-  const addr = q.addr || q.token || "";
-  const chain = q.chain === "rh" ? "rh" : "sol";
-
-  if (!addr || addr.length > 70) {
-    return res.status(200).json({ ok: false, trades: [] });
+  res.setHeader("Content-Type", "application/json");
+  try {
+    const r = await fetch("https://duallaunch-fix-buddy.lovable.app/api/public/trades?" + q);
+    res.status(200).send(await r.text());
+  } catch (e) {
+    res.status(200).send('{"ok":false,"candles":[],"trades":[]}');
+  }
+};
