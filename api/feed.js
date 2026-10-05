@@ -144,20 +144,22 @@ function overlay(base, extra) {
   const name = extra.name && extra.name !== "Unnamed" ? extra.name : base.name;
   const symbol = extra.symbol && extra.symbol !== "?" ? extra.symbol : base.symbol;
   const mcap = extra.mcap || base.mcap;
+  const curvePct = extra.curvePct || base.curvePct;
   return Object.assign({}, base, {
     name,
     symbol,
     logo: extra.logo || base.logo,
     mcap,
     vol: mcap ? usd(mcap) : base.vol,
-    curvePct: extra.curvePct || base.curvePct,
-    raised: extra.curvePct ? (extra.curvePct / 100) * (base.goal || extra.goal) : base.raised,
-    desc: base.desc || extra.desc,
-    twitter: base.twitter || extra.twitter,
-    telegram: base.telegram || extra.telegram,
-    website: base.website || extra.website,
-    graduated: base.graduated || extra.graduated,
-    priceUsd: extra.priceUsd || base.priceUsd
+    curvePct,
+    raised: curvePct ? (curvePct / 100) * (extra.goal || base.goal || 85) : base.raised,
+    goal: extra.goal || base.goal,
+    desc: extra.desc || base.desc,
+    twitter: extra.twitter || base.twitter,
+    telegram: extra.telegram || base.telegram,
+    website: extra.website || base.website,
+    graduated: extra.graduated || base.graduated,
+    priceUsd: mcap ? mcap / 1e9 : (extra.priceUsd || base.priceUsd || 0)
   });
 }
 
