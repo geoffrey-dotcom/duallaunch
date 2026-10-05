@@ -1255,7 +1255,7 @@
     function chartView(action) {
       if (!lwChart) return;
       const scale=lwChart.timeScale(), range=scale.getVisibleLogicalRange();
-      if(action==="reset") { const n=lwChart.__count||1; scale.setVisibleLogicalRange({from:Math.max(-3,n-65),to:n+5}); return; }
+      if(action==="reset") { const n=lwChart.__count||1; scale.setVisibleLogicalRange({from:n-80,to:n+6}); return; }
       if(!range)return;
       const width=(range.to-range.from)*(action==="in"?0.7:1.4);
       scale.setVisibleLogicalRange({from:range.to-width,to:range.to});
@@ -1427,57 +1427,21 @@
           html += "<p class='tick'>Trade feed unavailable.</p>";
         }
         let holders = [];
-        if (c.chain === "sol") {
-          try {
-            const r = await fetch("https://api.mainnet-beta.solana.com", {
-              method:"POST", headers:{ "content-type":"application/json" },
-              body: JSON.stringify({ jsonrpc:"2.0", id:1, method:"getTokenLargestAccounts", params:[c.address] })
-            });
-            const j = await r.json();
-            holders = ((j.result || {}).value || []).slice(0, 8).map(function(a){ return { address: a.address, n: Number(a.uiAmount || 0) }; });
-          } catch (e) {}
-        }
-        if (c.chain === "rh") {
-          try {
-            const r1 = await fetch("https://robinhoodchain.blockscout.com/api/v2/tokens/" + encodeURIComponent(c.address) + "/holders");
-            if (r1.ok) {
-              const j1 = await r1.json();
-              holders = (j1.items || []).slice(0, 8).map(function(it){
-                const addrObj = it.address || {};
-                const hash = addrObj.hash || addrObj.address_hash || it.address_hash || "";
-                return {
-                  address: hash,
-                  n: Number(it.value || 0) / 1e18,
-                  contract: !!(addrObj.is_contract),
-                  name: addrObj.name || addrObj.implementation_name || ""
-                };
-              });
-            }
-          } catch (e) {}
-        }
-        const total = holders.reduce(function(s,a){ return s + Number(a.n||0); }, 0);
-        html += "<p class='kicker' style='margin-top:18px'>Holders" + (holders.length ? " · top " + holders.length : "") + "</p>";
-        if (!holders.length) html += "<p class='tick'>Holder list not indexed yet. Try Open explorer.</p>";
+        try {
+          const rh = await fetch(DL_API + "/holders?chain=" + encodeURIComponent(c.chain) + "&addr=" + encodeURIComponent(c.address) + "&graduated=" + (graduated(c) ? 1 : 0));
+          const jh = await rh.json();
+          holders = jh.holders || [];
+        } catch (e) {}
+        html += "<p class='kicker' style='margin-top:18px'>Holders" + (holders.length ? " · top " + holders.length + " · live" : "") + "</p>";
+        if (!holders.length) html += "<p class='tick'>Holder list is loading. It refreshes every few seconds.</p>";
         else {
-          const known = {
-            "0xa5aab3f0c6eeadf30ef1d3eb997108e976351feb":"PONS factory",
-            "0x736d76699c26d0d966744cae304c000d471f7f35":"PONS locker",
-            "0x1f7d7550b1b028f7571e69a784071f0205fd2efa":"PONS v3 factory",
-            "0x73991a25c818bf1f1128deaab1492d45638de0d3":"PONS positions"
-          };
-          html += "<table class='tape'><thead><tr><th>#</th><th>Wallet</th><th>Amount</th><th>%</th></tr></thead><tbody>";
+          html += "<div class='tape-scroll'><table class='tape'><thead><tr><th>#</th><th>Wallet</th><th>Amount</th><th>% of supply</th></tr></thead><tbody>";
           html += holders.map(function(a,i){
-            const pctH = total ? (Number(a.n||0)/total*100) : 0;
-            const low = String(a.address || "").toLowerCase();
             const shortA = String(a.address).slice(0,6) + "…" + String(a.address).slice(-4);
-            let tag = known[low] || "";
-            if (!tag && a.contract) tag = a.name || "Contract";
-            if (!tag && i === 0 && pctH >= 25 && !graduated(c)) tag = "Bonding curve";
-            const label = tag ? ("<b>" + esc(tag) + "</b><div class='tick'>" + shortA + "</div>") : ("<span class='mono'>" + shortA + "</span>");
-            return "<tr><td class='tick'>" + (i+1) + "</td><td>" + label + "</td><td>" + Number(a.n||0).toLocaleString("en-US",{maximumFractionDigits:2}) + "</td><td class='tick'>" + pctH.toFixed(1) + "%</td></tr>";
+            const label = a.tag ? ("<b>" + esc(a.tag) + "</b><div class='tick'>" + shortA + "</div>") : ("<span class='mono'>" + shortA + "</span>");
+            return "<tr><td class='tick'>" + (i+1) + "</td><td>" + label + "</td><td>" + Number(a.amount||0).toLocaleString("en-US",{maximumFractionDigits:0}) + "</td><td class='tick'>" + Number(a.pct||0).toFixed(2) + "%</td></tr>";
           }).join("");
-          html += "</tbody></table>";
-          html += "<p class='tick' style='margin-top:8px'>The biggest holder is often the bonding curve / pool, not a buyer.</p>";
+          html += "</tbody></table></div>";
         }
         box.innerHTML = html;
       }
