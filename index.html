@@ -133,9 +133,16 @@
     .stats-strip { margin-bottom: 8px;  display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin: 8px 0 24px; }
     .sbox { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px 18px; }
         .swap-shell {
-      width: min(420px, 100%); min-height: 540px; margin-top: 8px;
-      background: transparent; border: 0; overflow: hidden; border-radius: 16px;
+      width: min(560px, 100%); min-height: 620px; margin-top: 12px;
+      background: linear-gradient(180deg, #1b1d22, #141519); border: 1px solid rgba(184,255,58,.18);
+      box-shadow: 0 20px 60px -20px rgba(123,77,255,.35), 0 0 0 1px rgba(255,255,255,.02) inset;
+      overflow: hidden; border-radius: 20px; padding: 22px 22px 14px;
     }
+    .swap-head { display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+    .swap-head img { width:40px; height:40px; border-radius:10px; object-fit:cover; }
+    .swap-head b { font-family:Sora, sans-serif; font-size:18px; display:block; }
+    .swap-head span { font-size:12px; color:#8b8c9a; }
+    #jupiter-plugin { font-size: 16px; }
     #jupiter-plugin, #jupiter-plugin > div { width: 100% !important; background: transparent !important; }
     #jupiter-plugin a[href*="jup.ag"], #jupiter-plugin [class*="powered"], #jupiter-plugin [class*="Powered"] { display:none !important; }
     .launch-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; max-width:760px; margin-top:8px; }
@@ -633,6 +640,7 @@
         <button id="swapRhBtn" type="button">Robinhood Chain</button>
       </div>
       <div id="jupBox" class="swap-shell">
+        <div class="swap-head"><img src="/logo.jpg" alt="DualLaunch"/><div><b>DualLaunch Swap</b><span>Best route on Solana · your wallet signs every trade</span></div></div>
         <p class="tick" style="margin-bottom:10px">Phantom, Solflare, Trust, Backpack, OKX and more: press Connect inside the swap box.</p>
         <p class="tick dl-lbl dl-mobile-only" style="margin-top:4px">On your phone? Open DualLaunch in your wallet app first, then press Connect:</p>
         <div class="split dl-mobile-only" style="margin:8px 0 12px;max-width:640px;flex-wrap:wrap">
@@ -1598,13 +1606,18 @@
       blockExplorerUrls: ["https://robinhoodchain.blockscout.com"]
     };
     function short(a) { return a ? a.slice(0, 6) + "…" + a.slice(-4) : ""; }
+    window.dlEip = window.dlEip || [];
+    window.addEventListener("eip6963:announceProvider", function(ev){ const d = ev.detail; if (d && d.provider && !window.dlEip.some(function(x){ return x.info && d.info && x.info.uuid === d.info.uuid; })) window.dlEip.push(d); });
+    window.dispatchEvent(new Event("eip6963:requestProvider"));
     function evmProvider() {
-      const e = window.ethereum;
-      if (!e) return null;
-      if (e.providers && e.providers.length) {
-        return e.providers.find((p) => p.isMetaMask || p.isRabby || p.isCoinbaseWallet) || e.providers[0];
+      const w = window, e = w.ethereum;
+      const tw = w.trustwallet && (w.trustwallet.ethereum || (w.trustwallet.request ? w.trustwallet : null));
+      if (tw) return tw;
+      if (e && e.providers && e.providers.length) {
+        return e.providers.find((p) => p.isTrust || p.isTrustWallet) || e.providers.find((p) => p.isMetaMask || p.isRabby || p.isCoinbaseWallet) || e.providers[0];
       }
-      return e;
+      if (e) return e;
+      return w.dlEip.length ? w.dlEip[0].provider : null;
     }
     function solKey(sol) {
       if (!sol) return "";
@@ -1734,7 +1747,7 @@
             integratedTargetId: "jupiter-plugin",
             defaultExplorer: "Solscan",
             enableWalletPassthrough: false,
-            branding: { name: "DualLaunch", logoUri: "/logo.jpg" },
+            branding: { name: "DualLaunch", logoUri: location.origin + "/logo.jpg" },
             containerStyles: { width: "100%", borderRadius: "16px", background: "transparent" }
           };
           if (JUP_REFERRAL && JUP_USE_FEE) {
@@ -2233,7 +2246,7 @@
         integratedTargetId: "jupiter-plugin",
         defaultExplorer: "Solscan",
         enableWalletPassthrough: false,
-        branding: { name: "DualLaunch", logoUri: "https://www.duallaunch.xyz/logo.jpg" },
+        branding: { name: "DualLaunch", logoUri: location.origin + "/logo.jpg" },
         containerStyles: { width: "100%", borderRadius: "16px" },
         formProps: { initialInputMint: SOL_MINT }
       };
@@ -2247,7 +2260,7 @@
   function tab(sol) {
     $("jupBox").style.display = sol ? "block" : "none"; $("rhSwap").style.display = sol ? "none" : "block";
     $("swapSolBtn").classList.toggle("on", sol); $("swapRhBtn").classList.toggle("on", !sol);
-    if (sol) window.initSwap(); else renderWallets();
+    if (sol) window.initSwap(); else { window.dispatchEvent(new Event("eip6963:requestProvider")); renderWallets(); setTimeout(renderWallets, 800); }
   }
   $("swapSolBtn").onclick = function(){ tab(true); };
   $("swapRhBtn").onclick = function(){ tab(false); };
@@ -2273,6 +2286,7 @@
   function renderWallets() {
     const box = $("rhWallets"); if (!box) return;
     let list = st.wallets.slice();
+    if (!list.length && window.trustwallet && (window.trustwallet.ethereum || window.trustwallet.request)) list = [{ info: { uuid: "trust", name: "Trust Wallet", icon: "" }, provider: window.trustwallet.ethereum || window.trustwallet }];
     if (!list.length && window.ethereum) list = [{ info: { uuid: "injected", name: window.ethereum.isTrust ? "Trust Wallet" : window.ethereum.isCoinbaseWallet ? "Coinbase Wallet" : window.ethereum.isMetaMask ? "MetaMask" : "Browser wallet", icon: "" }, provider: window.ethereum }];
     if (!list.length) { box.innerHTML = "<p class='tick'>No wallet found in this browser. Install MetaMask, Trust, Coinbase Wallet or Rabby" + (isMobile ? ", or open DualLaunch inside your wallet app below." : ".") + "</p>"; return; }
     box.innerHTML = list.map(function(w, i){
