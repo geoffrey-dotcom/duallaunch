@@ -2286,25 +2286,66 @@
     return { autoConnect: false, wallets: [wallet], wallet: wallet, publicKey: pk, connected: true, connecting: false, disconnecting: false,
       select: noop, connect: async function(){}, disconnect: disc, sendTransaction: send, signTransaction: signTx, signAllTransactions: signAll, signMessage: signMsg };
   }
+  // Wallet Standard discovery (how modern extensions like Trust announce Solana)
+  const dlStd = [];
+  (function(){
+    const api = { register: function(){ Array.prototype.forEach.call(arguments, function(w){ if (dlStd.indexOf(w) < 0) dlStd.push(w); }); return function(){}; } };
+    window.addEventListener("wallet-standard:register-wallet", function(ev){ try { ev.detail(api); } catch (e) {} });
+    try { window.dispatchEvent(new CustomEvent("wallet-standard:app-ready", { detail: api })); } catch (e) {}
+  })();
+  const DL_RX = { trust: /trust/i, phantom: /phantom/i, solflare: /solflare/i, okx: /okx/i, backpack: /backpack/i };
+  function dlFindStd(name) {
+    return dlStd.find(function(w){ return DL_RX[name] && DL_RX[name].test(w.name || "") && w.features && w.features["standard:connect"] && (!w.chains || w.chains.some(function(c){ return /^solana:/.test(c); })); }) || null;
+  }
+  function dlPk(addr) {
+    return { toBase58: function(){ return addr; }, toString: function(){ return addr; }, toJSON: function(){ return addr; },
+      equals: function(o){ return !!o && String(o) === addr; }, toBytes: function(){ return new Uint8Array(32); }, toBuffer: function(){ return new Uint8Array(32); } };
+  }
+  function dlStdProvider(w, acc) {
+    const signF = w.features["solana:signTransaction"];
+    const msgF = w.features["solana:signMessage"];
+    const chain = (acc.chains || []).find(function(c){ return c === "solana:mainnet"; }) || "solana:mainnet";
+    const ser = function(tx){ try { return tx.serialize({ requireAllSignatures: false, verifySignatures: false }); } catch (e) { return tx.serialize(); } };
+    const back = function(tx, bytes){ const C = tx.constructor; return C.deserialize ? C.deserialize(bytes) : C.from(bytes); };
+    return {
+      publicKey: dlPk(acc.address),
+      signTransaction: async function(tx){ const r = await signF.signTransaction({ account: acc, transaction: ser(tx), chain: chain }); return back(tx, r[0].signedTransaction); },
+      signAllTransactions: async function(txs){ const r = await signF.signTransaction.apply(null, txs.map(function(t){ return { account: acc, transaction: ser(t), chain: chain }; })); return r.map(function(x, i){ return back(txs[i], x.signedTransaction); }); },
+      signMessage: async function(m){ const r = await msgF.signMessage({ account: acc, message: m }); return r[0].signature; },
+      disconnect: async function(){ try { const d = w.features["standard:disconnect"]; if (d) await d.disconnect(); } catch (e) {} }
+    };
+  }
   async function dlSolDirect(name, label) {
-    const sol = dlSolInjected(name);
     const st2 = $("solDirectState");
-    if (!sol) { if (st2) st2.textContent = label + " extension not found in this browser. Install or unlock it and reload the page."; return; }
+    const say = function(t){ if (st2) st2.textContent = t; };
+    let waiting = true;
+    const hint = setTimeout(function(){ if (waiting) say("No popup? Click the " + label + " icon in your browser toolbar, unlock it and approve. In Trust: Settings → enable Solana. Then press the button again."); }, 8000);
     try {
-      if (st2) st2.textContent = "Approve the connect request in " + label + "…";
-      let res = null;
-      if (typeof sol.connect === "function") res = await sol.connect();
-      else if (typeof sol.request === "function") res = await sol.request({ method: "connect" });
-      if (!sol.publicKey && res && res.publicKey) sol.publicKey = res.publicKey;
-      if (!sol.publicKey) throw new Error(label + " sent no address. Turn on Solana in the wallet and try again.");
+      say("Approve the connect request in " + label + "…");
+      let sol = null;
+      const std = dlFindStd(name);
+      if (std) {
+        const res = await std.features["standard:connect"].connect();
+        const acc = (res && res.accounts && res.accounts[0]) || (std.accounts && std.accounts[0]);
+        if (!acc) throw new Error(label + " sent no Solana account. Enable Solana in the wallet and try again.");
+        sol = dlStdProvider(std, acc);
+      } else {
+        sol = dlSolInjected(name);
+        if (!sol) { say(label + " extension not found in this browser. Install or unlock it and reload the page."); return; }
+        let res = null;
+        if (typeof sol.connect === "function") res = await sol.connect();
+        else if (typeof sol.request === "function") res = await sol.request({ method: "connect" });
+        if (!sol.publicKey && res && res.publicKey) sol.publicKey = res.publicKey;
+        if (!sol.publicKey) throw new Error(label + " sent no address. Turn on Solana in the wallet and try again.");
+      }
+      waiting = false; clearTimeout(hint);
       window.dlSolCtx = dlSolCtxFor(sol, label);
       window.dlSolForce = true;
       window.initSwap();
       const a = sol.publicKey.toString();
-      if (st2) st2.textContent = label + " connected: " + a.slice(0, 4) + "…" + a.slice(-4);
+      say(label + " connected: " + a.slice(0, 4) + "…" + a.slice(-4));
       toast(label + " connected");
-      if (sol.on) { try { sol.on("accountChanged", function(pk){ if (pk) { sol.publicKey = pk; window.dlSolCtx = dlSolCtxFor(sol, label); try { window.Jupiter.syncProps({ passthroughWalletContextState: window.dlSolCtx }); } catch (e) {} } }); } catch (e) {} }
-    } catch (e) { if (st2) st2.textContent = (e && e.message) ? e.message : "Connect cancelled"; }
+    } catch (e) { waiting = false; clearTimeout(hint); say((e && e.message) ? e.message : "Connect cancelled"); }
   }
   document.querySelectorAll("[data-solw]").forEach(function(b){ b.onclick = function(){ dlSolDirect(b.dataset.solw, b.textContent.trim()); }; });
 
