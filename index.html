@@ -133,7 +133,7 @@
     .stats-strip { margin-bottom: 8px;  display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin: 8px 0 24px; }
     .sbox { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px 18px; }
         .swap-shell {
-      width: min(560px, 100%); min-height: 620px; margin-top: 12px;
+      width: min(560px, 100%); min-height: 0; margin-top: 12px;
       background: linear-gradient(180deg, #1b1d22, #141519); border: 1px solid rgba(184,255,58,.18);
       box-shadow: 0 20px 60px -20px rgba(123,77,255,.35), 0 0 0 1px rgba(255,255,255,.02) inset;
       overflow: hidden; border-radius: 20px; padding: 22px 22px 14px;
@@ -143,6 +143,10 @@
     .swap-head b { font-family:Sora, sans-serif; font-size:18px; display:block; }
     .swap-head span { font-size:12px; color:#8b8c9a; }
     #jupiter-plugin { font-size: 16px; }
+    #jupiter-plugin [class*="max-w"] { max-width: 100% !important; }
+    .dl-direct .split { display:flex !important; gap:8px; grid-template-columns:none; }
+    .dl-direct .btn { padding: 7px 14px; font-size: 13px; width:auto; flex:0 0 auto; }
+    @media (max-width: 760px) { .dl-desktop-only { display:none !important; } }
     #jupiter-plugin, #jupiter-plugin > div { width: 100% !important; background: transparent !important; }
     #jupiter-plugin a[href*="jup.ag"], #jupiter-plugin [class*="powered"], #jupiter-plugin [class*="Powered"] { display:none !important; }
     .launch-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; max-width:760px; margin-top:8px; }
@@ -649,6 +653,17 @@
           <a class="btn btn-ghost" id="swOpenTrust" href="#">Open in Trust</a>
           <a class="btn btn-ghost" id="swOpenOkx" href="#">Open in OKX</a>
           <a class="btn btn-ghost" id="swOpenCoinbaseSol" href="#">Open in Coinbase Wallet</a>
+        </div>
+        <div class="dl-direct dl-desktop-only">
+          <p class="tick dl-lbl">Wallet extension not in the list? Connect it directly:</p>
+          <div class="split" style="flex-wrap:wrap;margin:6px 0 12px">
+            <button class="btn btn-ghost" type="button" data-solw="trust">Trust Wallet</button>
+            <button class="btn btn-ghost" type="button" data-solw="phantom">Phantom</button>
+            <button class="btn btn-ghost" type="button" data-solw="solflare">Solflare</button>
+            <button class="btn btn-ghost" type="button" data-solw="okx">OKX</button>
+            <button class="btn btn-ghost" type="button" data-solw="backpack">Backpack</button>
+          </div>
+          <p class="tick" id="solDirectState"></p>
         </div>
         <div id="jupiter-plugin"></div>
       </div>
@@ -2234,18 +2249,79 @@
   };
   Object.keys(links).forEach(function(k){ if ($(k)) $(k).href = links[k]; });
 
+  function dlStyleJup(n) {
+    const host = Array.prototype.find.call(document.querySelectorAll("#jupiter-plugin *"), function(x){ return x.shadowRoot; });
+    if (!host) { if (n < 40) setTimeout(function(){ dlStyleJup(n + 1); }, 250); return; }
+    if (host.shadowRoot.getElementById("dl-jup-style")) return;
+    const st3 = document.createElement("style"); st3.id = "dl-jup-style";
+    st3.textContent = ".max-w-\\[360px\\]{max-width:100% !important}.h-\\[550px\\]{height:470px !important}.bg-black{background:#101114 !important}";
+    host.shadowRoot.appendChild(st3);
+  }
+  // ---------- Solana direct connect (injected extension -> Jupiter passthrough) ----------
+  function dlSolInjected(name) {
+    const w = window;
+    if (name === "trust") return (w.trustwallet && w.trustwallet.solana) || (w.solana && (w.solana.isTrust || w.solana.isTrustWallet) ? w.solana : null);
+    if (name === "phantom") return (w.phantom && w.phantom.solana) || (w.solana && w.solana.isPhantom ? w.solana : null);
+    if (name === "solflare") return w.solflare || (w.solana && w.solana.isSolflare ? w.solana : null);
+    if (name === "okx") return (w.okxwallet && w.okxwallet.solana) || null;
+    if (name === "backpack") return (w.backpack && (w.backpack.solana || w.backpack)) || null;
+    return null;
+  }
+  function dlSolCtxFor(sol, label) {
+    const pk = sol.publicKey;
+    const signTx = function(t){ return sol.signTransaction(t); };
+    const signAll = function(ts){ return sol.signAllTransactions ? sol.signAllTransactions(ts) : Promise.all(ts.map(signTx)); };
+    const send = async function(tx, connection, opts){
+      if (sol.signAndSendTransaction) { const r = await sol.signAndSendTransaction(tx, opts); return (r && r.signature) || r; }
+      const signed = await sol.signTransaction(tx);
+      return connection.sendRawTransaction(signed.serialize(), opts);
+    };
+    const signMsg = async function(m){ const r = await sol.signMessage(m); return (r && r.signature) || r; };
+    const disc = async function(){ try { await sol.disconnect(); } catch (e) {} window.dlSolCtx = null; window.dlSolForce = true; window.initSwap(); };
+    const noop = function(){};
+    const adapter = { name: label, icon: location.origin + "/logo.jpg", url: "", readyState: "Installed", publicKey: pk, connected: true, connecting: false,
+      signTransaction: signTx, signAllTransactions: signAll, sendTransaction: send, signMessage: signMsg,
+      connect: async function(){}, disconnect: disc, on: noop, off: noop, once: noop, emit: noop, removeListener: noop, removeAllListeners: noop };
+    const wallet = { adapter: adapter, readyState: "Installed" };
+    return { autoConnect: false, wallets: [wallet], wallet: wallet, publicKey: pk, connected: true, connecting: false, disconnecting: false,
+      select: noop, connect: async function(){}, disconnect: disc, sendTransaction: send, signTransaction: signTx, signAllTransactions: signAll, signMessage: signMsg };
+  }
+  async function dlSolDirect(name, label) {
+    const sol = dlSolInjected(name);
+    const st2 = $("solDirectState");
+    if (!sol) { if (st2) st2.textContent = label + " extension not found in this browser. Install or unlock it and reload the page."; return; }
+    try {
+      if (st2) st2.textContent = "Approve the connect request in " + label + "…";
+      let res = null;
+      if (typeof sol.connect === "function") res = await sol.connect();
+      else if (typeof sol.request === "function") res = await sol.request({ method: "connect" });
+      if (!sol.publicKey && res && res.publicKey) sol.publicKey = res.publicKey;
+      if (!sol.publicKey) throw new Error(label + " sent no address. Turn on Solana in the wallet and try again.");
+      window.dlSolCtx = dlSolCtxFor(sol, label);
+      window.dlSolForce = true;
+      window.initSwap();
+      const a = sol.publicKey.toString();
+      if (st2) st2.textContent = label + " connected: " + a.slice(0, 4) + "…" + a.slice(-4);
+      toast(label + " connected");
+      if (sol.on) { try { sol.on("accountChanged", function(pk){ if (pk) { sol.publicKey = pk; window.dlSolCtx = dlSolCtxFor(sol, label); try { window.Jupiter.syncProps({ passthroughWalletContextState: window.dlSolCtx }); } catch (e) {} } }); } catch (e) {} }
+    } catch (e) { if (st2) st2.textContent = (e && e.message) ? e.message : "Connect cancelled"; }
+  }
+  document.querySelectorAll("[data-solw]").forEach(function(b){ b.onclick = function(){ dlSolDirect(b.dataset.solw, b.textContent.trim()); }; });
+
   // ---------- Solana (Jupiter plugin with its own wallet list) ----------
   let jupMint = null;
   window.initSwap = function(mint) {
     const want = mint || jupMint || "";
     if (!window.Jupiter) { setTimeout(function(){ window.initSwap(mint); }, 600); return; }
-    if (jupReady && want === jupMint) return;
+    if (jupReady && want === jupMint && !window.dlSolForce) return;
+    window.dlSolForce = false;
     try {
       const cfg = {
         displayMode: "integrated",
         integratedTargetId: "jupiter-plugin",
         defaultExplorer: "Solscan",
-        enableWalletPassthrough: false,
+        enableWalletPassthrough: !!window.dlSolCtx,
+        onRequestConnectWallet: function(){ toast("Pick your wallet above the swap box."); },
         branding: { name: "DualLaunch", logoUri: location.origin + "/logo.jpg" },
         containerStyles: { width: "100%", borderRadius: "16px" },
         formProps: { initialInputMint: SOL_MINT }
@@ -2254,6 +2330,8 @@
       if (JUP_REFERRAL && JUP_USE_FEE) { cfg.formProps.referralAccount = JUP_REFERRAL; cfg.formProps.referralFee = JUP_FEE_BPS; }
       window.Jupiter.init(cfg);
       jupReady = true; jupMint = want;
+      if (window.dlSolCtx) { try { window.Jupiter.syncProps({ passthroughWalletContextState: window.dlSolCtx }); } catch (e) {} }
+      dlStyleJup(0);
     } catch (e) { toast("Swap failed to start. Refresh the page."); }
   };
 
