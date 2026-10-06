@@ -555,7 +555,7 @@
       <div class="wallet-bar">
         <input class="search" id="q" placeholder="Search name, ticker or address" />
       </div>
-      <p class="tick" id="feedStatus" style="margin-top:10px">Loading feed…</p>
+      <p class="tick" id="feedStatus" style="margin-top:10px;display:none">Loading feed…</p>
       <div id="boardMine" class="table" style="margin:12px 0;display:none"></div>
       <div class="toolbar" id="tb-chain">
         <button class="on" data-f="all" onclick="filterBoard(this,'all')">All</button>
@@ -1157,7 +1157,7 @@
       const more = $("moreBtn");
       if (more) more.style.display = all.length > list.length ? "" : "none";
       if (!list.length) {
-        board.innerHTML = `<div style="padding:28px;grid-column:1/-1" class="lede">No coins in this filter, or the feed is still loading.</div>`;
+        board.innerHTML = `<div style="padding:28px;grid-column:1/-1" class="lede">No coins in this filter yet.</div>`;
         return;
       }
       const have = {};
@@ -1806,9 +1806,12 @@
       if ($("statFresh")) $("statFresh").textContent = String(freshN);
       paintWallet();
       const status = $("feedStatus");
-      if (status) status.innerHTML = coins.length
-        ? ('<span class="live-dot"></span>' + coins.length + " live · " + freshN + " new in 5 min · " + new Date().toLocaleTimeString("en-US"))
-        : "Loading feed…";
+      if (status) {
+        if (coins.length) {
+          status.style.display = "";
+          status.innerHTML = '<span class="live-dot"></span>' + coins.length + " live · " + freshN + " new in 5 min · " + new Date().toLocaleTimeString("en-US");
+        } else status.style.display = "none";
+      }
       const strip = $("listedStrip");
       if (strip) {
         const rows = listed().slice(0, 4);
