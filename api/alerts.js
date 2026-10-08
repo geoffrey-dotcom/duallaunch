@@ -1,6 +1,6 @@
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
 const TG = "https://api.telegram.org/bot" + TOKEN;
-const SITE = process.env.SITE_URL || "https://www.duallaunch.xyz";
+const SITE = process.env.SITE_URL || "https://duallaunch.xyz";
 const MIN_MCAP = Number(process.env.TG_MIN_MCAP || 15000);
 const PONS_CHAT = process.env.TG_PONS_CHAT || "";
 const PUMP_CHAT = process.env.TG_PUMP_CHAT || "";
@@ -50,7 +50,6 @@ function photosOf(c) {
 }
 
 function tokenUrl(c) {
-  // Direct coin page on DualLaunch (feed id already carries the sol-/rh- prefix).
   return SITE + "/token/" + encodeURIComponent(c.id || "");
 }
 
@@ -92,18 +91,30 @@ function payload(c) {
   };
 }
 
+async function getFeed(src) {
+  try {
+    const r = await fetch(SITE + "/api/public/feed?src=" + src);
+    if (r.ok) return await r.json();
+  } catch (e) {}
+  try {
+    const r2 = await fetch("https://duallaunch-fix-buddy.lovable.app/api/public/feed?src=" + src);
+    if (r2.ok) return await r2.json();
+  } catch (e) {}
+  return { ok: false, coins: [] };
+}
+
 module.exports = async function handler(req, res) {
   if (!TOKEN) {
     res.status(200).json({ ok: false, error: "missing TELEGRAM_BOT_TOKEN" });
     return;
   }
   try {
-    const [ponsRes, pumpRes] = await Promise.all([
-      fetch(SITE + "/api/feed?src=pons"),
-      fetch(SITE + "/api/feed?src=pump")
+    const [ponsData, pumpData] = await Promise.all([
+      getFeed("pons"),
+      getFeed("pump")
     ]);
-    const pons = ((await ponsRes.json()).coins || []).filter((c) => c.chain === "rh" && Number(c.mcap || 0) >= MIN_MCAP);
-    const pump = ((await pumpRes.json()).coins || []).filter((c) => c.chain === "sol" && Number(c.mcap || 0) >= MIN_MCAP);
+    const pons = (ponsData.coins || []).filter((c) => c.chain === "rh" && Number(c.mcap || 0) >= MIN_MCAP);
+    const pump = (pumpData.coins || []).filter((c) => c.chain === "sol" && Number(c.mcap || 0) >= MIN_MCAP);
     const force = String((req.query && req.query.force) || "") === "1";
     if (force) seen.clear();
     const freshAge = Date.now() - 45 * 60 * 1000;
