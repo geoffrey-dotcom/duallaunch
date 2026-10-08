@@ -31,31 +31,48 @@ function fmtUsd(n) {
   return "$" + Math.round(v);
 }
 
+function fmtChange(v) {
+  const n = Number(v || 0);
+  const arrow = n > 0 ? "🟢" : n < 0 ? "🔴" : "⚪";
+  return (n > 0 ? "+" : "") + n.toFixed(1) + "% " + arrow;
+}
+
+function curveBar(pct) {
+  const filled = Math.round(Math.min(100, Math.max(0, pct)) / 12.5);
+  return "🟩".repeat(filled) + "⬜".repeat(8 - filled) + " " + pct.toFixed(0) + "%";
+}
+
 function photosOf(c) {
-  const a = c.address || "";
   const out = [];
   if (c.logo && /^https?:\/\//i.test(c.logo)) out.push(c.logo);
   out.push(SITE + "/logo.jpg");
   return out;
 }
 
+function tokenUrl(c) {
+  // Direct coin page on DualLaunch (feed id already carries the sol-/rh- prefix).
+  return SITE + "/token/" + encodeURIComponent(c.id || "");
+}
+
 function payload(c) {
   const pct = Math.min(100, ((Number(c.raised || 0) / (c.goal || 1)) * 100));
-  const chain = c.chain === "rh" ? "PONS" : "pump.fun";
-  const pad = c.link || SITE;
-  const dex = SITE + "/?coin=" + encodeURIComponent(c.id || "");
+  const chain = c.chain === "rh" ? "PONS · Robinhood Chain" : "pump.fun · Solana";
   const scan = c.chain === "rh"
     ? "https://robinhoodchain.blockscout.com/token/" + (c.address || "")
     : "https://solscan.io/token/" + (c.address || "");
   const ageMin = c.created ? Math.max(0, Math.round((Date.now() - Number(c.created)) / 60000)) : null;
+  const ch5 = c.change5m != null ? fmtChange(c.change5m) : null;
+  const ch1 = c.change1h != null ? fmtChange(c.change1h) : null;
   const caption =
-    "🚀 <b>" + escapeHtml(c.symbol || "?") + "</b>  ·  " + chain + "\n" +
-    escapeHtml(c.name || "") + "\n\n" +
-    "💰 MC: <b>" + fmtUsd(c.mcap) + "</b>\n" +
-    "📈 Curve: <b>" + pct.toFixed(0) + "%</b>\n" +
-    "📊 Vol: " + escapeHtml(c.vol || "—") + "\n" +
-    (ageMin != null ? "⏱ Age: " + ageMin + "m\n" : "") +
-    "🔗 CA\n<code>" + escapeHtml(c.address || "") + "</code>\n\n" +
+    "🚀 <b>NEW " + escapeHtml(chain.split(" · ")[0].toUpperCase()) + " RUNNER</b> ⚡\n\n" +
+    "<b>$" + escapeHtml(c.symbol || "?") + "</b> — " + escapeHtml(c.name || "") + "\n" +
+    "<i>" + escapeHtml(chain) + "</i>\n\n" +
+    "💰 <b>Market Cap:</b> <code>" + fmtUsd(c.mcap) + "</code>\n" +
+    "📈 <b>Curve:</b> " + curveBar(pct) + "\n" +
+    (ch5 || ch1 ? "📊 <b>Changes:</b> " + (ch5 ? "5m: " + ch5 : "") + (ch5 && ch1 ? " | " : "") + (ch1 ? "1h: " + ch1 : "") + "\n" : "") +
+    "📊 <b>Volume:</b> " + escapeHtml(c.vol || "—") + "\n" +
+    (ageMin != null ? "⏱ <b>Age:</b> " + ageMin + "m\n" : "") +
+    "\n📋 <b>Contract</b> <i>(tap to copy)</i>:\n<code>" + escapeHtml(c.address || "") + "</code>\n\n" +
     "<i>Not financial advice. DualLaunch does not mint tokens.</i>";
   return {
     caption,
@@ -64,12 +81,11 @@ function payload(c) {
     reply_markup: {
       inline_keyboard: [
         [
-          { text: "DualLaunch", url: SITE },
-          { text: chain, url: pad }
+          { text: "⚡ Trade on DualLaunch", url: tokenUrl(c) }
         ],
         [
-          { text: "Chart", url: dex },
-          { text: "Scan", url: scan }
+          { text: "📊 Chart & Safety Audit", url: tokenUrl(c) },
+          { text: "🔍 Scan", url: scan }
         ]
       ]
     }
